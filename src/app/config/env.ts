@@ -8,6 +8,16 @@ const envSchema = z.object({
   DATABASE_URL: z.string().trim().min(1, "DATABASE_URL is required"),
   DIRECT_URL: z.string().trim().min(1, "DIRECT_URL is required"),
   CORS_ORIGINS: z.string().trim().default("http://localhost:3000"),
+  JWT_ACCESS_SECRET: z
+    .string()
+    .min(32, "JWT_ACCESS_SECRET must be at least 32 characters")
+    .refine((value) => !value.startsWith("CHANGE_ME"), {
+      message: "JWT_ACCESS_SECRET must be replaced with a real random secret",
+    }),
+  JWT_ACCESS_TTL_MINUTES: z.coerce.number().int().positive().max(1440).default(15),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().max(365).default(30),
+  JWT_ISSUER: z.string().trim().min(1).default("procurax-api"),
+  JWT_AUDIENCE: z.string().trim().min(1).default("procurax-client"),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

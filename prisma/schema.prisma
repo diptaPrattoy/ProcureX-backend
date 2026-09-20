@@ -116,22 +116,22 @@ model User {
   updatedAt       DateTime      @updatedAt @db.Timestamptz(3)
 
   buyerProfile             BuyerProfile?
-  supplierProfile          SupplierProfile?  @relation("SupplierOwner")
-  supplierProfilesVerified SupplierProfile[] @relation("SupplierVerifier")
+  supplierProfile          SupplierProfile?          @relation("SupplierOwner")
+  supplierProfilesVerified SupplierProfile[]         @relation("SupplierVerifier")
   refreshTokens            RefreshToken[]
   authTokens               AuthToken[]
-  rfqsCreated              Rfq[]             @relation("BuyerRfqs")
-  quotations               Quotation[]       @relation("SupplierQuotations")
-  purchaseOrdersAsBuyer    PurchaseOrder[]   @relation("BuyerPurchaseOrders")
-  purchaseOrdersAsSupplier PurchaseOrder[]   @relation("SupplierPurchaseOrders")
-  goodsReceipts            GoodsReceipt[]    @relation("BuyerGoodsReceipts")
-  invoicesAsBuyer          Invoice[]         @relation("BuyerInvoices")
-  invoicesAsSupplier       Invoice[]         @relation("SupplierInvoices")
-  payments                 Payment[]         @relation("BuyerPayments")
-  disputesOpened           Dispute[]         @relation("DisputeOpenedBy")
-  disputesAgainst          Dispute[]         @relation("DisputeAgainst")
-  disputesResolved         Dispute[]         @relation("DisputeResolvedBy")
-  auditLogs                AuditLog[]        @relation("AuditActor")
+  rfqsCreated              Rfq[]                     @relation("BuyerRfqs")
+  quotations               Quotation[]               @relation("SupplierQuotations")
+  purchaseOrdersAsBuyer    PurchaseOrder[]           @relation("BuyerPurchaseOrders")
+  purchaseOrdersAsSupplier PurchaseOrder[]           @relation("SupplierPurchaseOrders")
+  goodsReceipts            GoodsReceipt[]            @relation("BuyerGoodsReceipts")
+  invoicesAsBuyer          Invoice[]                 @relation("BuyerInvoices")
+  invoicesAsSupplier       Invoice[]                 @relation("SupplierInvoices")
+  payments                 Payment[]                 @relation("BuyerPayments")
+  disputesOpened           Dispute[]                 @relation("DisputeOpenedBy")
+  disputesAgainst          Dispute[]                 @relation("DisputeAgainst")
+  disputesResolved         Dispute[]                 @relation("DisputeResolvedBy")
+  auditLogs                AuditLog[]                @relation("AuditActor")
   notifications            Notification[]
 
   @@index([role, status])
@@ -140,21 +140,21 @@ model User {
 }
 
 model BuyerProfile {
-  id                     String   @id @default(uuid()) @db.Uuid
-  userId                 String   @unique @db.Uuid
-  companyName            String
-  legalName              String?
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @unique @db.Uuid
+  companyName         String
+  legalName           String?
   businessRegistrationNo String?
-  taxId                  String?
-  website                String?
-  addressLine1           String?
-  addressLine2           String?
-  city                   String?
-  state                  String?
-  postalCode             String?
-  country                String?
-  createdAt              DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt              DateTime @updatedAt @db.Timestamptz(3)
+  taxId               String?
+  website             String?
+  addressLine1        String?
+  addressLine2        String?
+  city                String?
+  state               String?
+  postalCode          String?
+  country             String?
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
@@ -293,46 +293,46 @@ model Rfq {
 }
 
 model RfqItem {
-  id             String   @id @default(uuid()) @db.Uuid
-  rfqId          String   @db.Uuid
-  itemName       String
-  description    String?
+  id            String   @id @default(uuid()) @db.Uuid
+  rfqId         String   @db.Uuid
+  itemName      String
+  description   String?
   specifications Json?
-  quantity       Decimal  @db.Decimal(14, 3)
-  unit           String
-  createdAt      DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+  quantity      Decimal  @db.Decimal(14, 3)
+  unit          String
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
 
-  rfq                Rfq                 @relation(fields: [rfqId], references: [id], onDelete: Cascade)
-  quotationItems     QuotationItem[]
+  rfq             Rfq              @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  quotationItems  QuotationItem[]
   purchaseOrderItems PurchaseOrderItem[]
 
   @@index([rfqId])
 }
 
 model Quotation {
-  id           String          @id @default(uuid()) @db.Uuid
-  rfqId        String          @db.Uuid
-  supplierId   String          @db.Uuid
-  currency     String          @default("USD") @db.VarChar(3)
-  subtotal     Decimal         @db.Decimal(14, 2)
-  taxAmount    Decimal         @default(0) @db.Decimal(14, 2)
-  totalAmount  Decimal         @db.Decimal(14, 2)
-  deliveryDays Int
-  validUntil   DateTime        @db.Date
-  terms        String?
-  notes        String?
-  status       QuotationStatus @default(SUBMITTED)
-  submittedAt  DateTime        @default(now()) @db.Timestamptz(3)
-  reviewedAt   DateTime?       @db.Timestamptz(3)
-  awardedAt    DateTime?       @db.Timestamptz(3)
-  withdrawnAt  DateTime?       @db.Timestamptz(3)
-  deletedAt    DateTime?       @db.Timestamptz(3)
-  createdAt    DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime        @updatedAt @db.Timestamptz(3)
+  id             String          @id @default(uuid()) @db.Uuid
+  rfqId          String          @db.Uuid
+  supplierId     String          @db.Uuid
+  currency       String          @default("USD") @db.VarChar(3)
+  subtotal       Decimal         @db.Decimal(14, 2)
+  taxAmount      Decimal         @default(0) @db.Decimal(14, 2)
+  totalAmount    Decimal         @db.Decimal(14, 2)
+  deliveryDays   Int
+  validUntil     DateTime        @db.Date
+  terms          String?
+  notes          String?
+  status         QuotationStatus @default(SUBMITTED)
+  submittedAt    DateTime        @default(now()) @db.Timestamptz(3)
+  reviewedAt     DateTime?       @db.Timestamptz(3)
+  awardedAt      DateTime?       @db.Timestamptz(3)
+  withdrawnAt    DateTime?       @db.Timestamptz(3)
+  deletedAt      DateTime?       @db.Timestamptz(3)
+  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
 
-  rfq           Rfq             @relation(fields: [rfqId], references: [id], onDelete: Restrict)
-  supplier      User            @relation("SupplierQuotations", fields: [supplierId], references: [id], onDelete: Restrict)
+  rfq           Rfq            @relation(fields: [rfqId], references: [id], onDelete: Restrict)
+  supplier      User           @relation("SupplierQuotations", fields: [supplierId], references: [id], onDelete: Restrict)
   items         QuotationItem[]
   purchaseOrder PurchaseOrder?
 
@@ -362,27 +362,27 @@ model QuotationItem {
 }
 
 model PurchaseOrder {
-  id              String              @id @default(uuid()) @db.Uuid
-  poNumber        String              @unique
-  rfqId           String              @unique @db.Uuid
-  quotationId     String              @unique @db.Uuid
-  buyerId         String              @db.Uuid
-  supplierId      String              @db.Uuid
-  currency        String              @default("USD") @db.VarChar(3)
-  subtotal        Decimal             @db.Decimal(14, 2)
-  taxAmount       Decimal             @default(0) @db.Decimal(14, 2)
-  totalAmount     Decimal             @db.Decimal(14, 2)
-  shippingAddress Json
-  notes           String?
-  status          PurchaseOrderStatus @default(ISSUED)
-  issuedAt        DateTime            @default(now()) @db.Timestamptz(3)
-  acceptedAt      DateTime?           @db.Timestamptz(3)
-  rejectedAt      DateTime?           @db.Timestamptz(3)
-  deliveredAt     DateTime?           @db.Timestamptz(3)
-  completedAt     DateTime?           @db.Timestamptz(3)
-  cancelledAt     DateTime?           @db.Timestamptz(3)
-  createdAt       DateTime            @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime            @updatedAt @db.Timestamptz(3)
+  id                String              @id @default(uuid()) @db.Uuid
+  poNumber          String              @unique
+  rfqId             String              @unique @db.Uuid
+  quotationId       String              @unique @db.Uuid
+  buyerId           String              @db.Uuid
+  supplierId        String              @db.Uuid
+  currency          String              @default("USD") @db.VarChar(3)
+  subtotal          Decimal             @db.Decimal(14, 2)
+  taxAmount         Decimal             @default(0) @db.Decimal(14, 2)
+  totalAmount       Decimal             @db.Decimal(14, 2)
+  shippingAddress   Json
+  notes             String?
+  status            PurchaseOrderStatus @default(ISSUED)
+  issuedAt          DateTime            @default(now()) @db.Timestamptz(3)
+  acceptedAt        DateTime?           @db.Timestamptz(3)
+  rejectedAt        DateTime?           @db.Timestamptz(3)
+  deliveredAt       DateTime?           @db.Timestamptz(3)
+  completedAt       DateTime?           @db.Timestamptz(3)
+  cancelledAt       DateTime?           @db.Timestamptz(3)
+  createdAt         DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime            @updatedAt @db.Timestamptz(3)
 
   rfq           Rfq                 @relation(fields: [rfqId], references: [id], onDelete: Restrict)
   quotation     Quotation           @relation(fields: [quotationId], references: [id], onDelete: Restrict)
@@ -412,10 +412,10 @@ model PurchaseOrderItem {
   createdAt       DateTime @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @db.Timestamptz(3)
 
-  purchaseOrder     PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  rfqItem           RfqItem            @relation(fields: [rfqItemId], references: [id], onDelete: Restrict)
+  purchaseOrder    PurchaseOrder    @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  rfqItem          RfqItem          @relation(fields: [rfqItemId], references: [id], onDelete: Restrict)
   goodsReceiptItems GoodsReceiptItem[]
-  invoiceItems      InvoiceItem[]
+  invoiceItems     InvoiceItem[]
 
   @@unique([purchaseOrderId, rfqItemId])
   @@index([rfqItemId])
@@ -433,8 +433,8 @@ model GoodsReceipt {
   createdAt       DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @db.Timestamptz(3)
 
-  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
-  buyer         User               @relation("BuyerGoodsReceipts", fields: [buyerId], references: [id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  buyer         User              @relation("BuyerGoodsReceipts", fields: [buyerId], references: [id], onDelete: Restrict)
   items         GoodsReceiptItem[]
 
   @@index([purchaseOrderId, receivedAt])
@@ -452,7 +452,7 @@ model GoodsReceiptItem {
   createdAt           DateTime @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime @updatedAt @db.Timestamptz(3)
 
-  goodsReceipt      GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  goodsReceipt     GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
   purchaseOrderItem PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Restrict)
 
   @@unique([goodsReceiptId, purchaseOrderItemId])
@@ -514,24 +514,24 @@ model InvoiceItem {
 }
 
 model Payment {
-  id                        String          @id @default(uuid()) @db.Uuid
-  invoiceId                 String          @db.Uuid
-  buyerId                   String          @db.Uuid
-  provider                  PaymentProvider @default(STRIPE)
-  status                    PaymentStatus   @default(PENDING)
-  currency                  String          @default("USD") @db.VarChar(3)
-  amount                    Decimal         @db.Decimal(14, 2)
-  idempotencyKey            String          @unique
-  providerPaymentIntentId   String?         @unique
-  providerCheckoutSessionId String?         @unique
-  failureReason             String?
-  receiptUrl                String?
-  providerMetadata          Json?
-  initiatedAt               DateTime        @default(now()) @db.Timestamptz(3)
-  completedAt               DateTime?       @db.Timestamptz(3)
-  refundedAt                DateTime?       @db.Timestamptz(3)
-  createdAt                 DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt                 DateTime        @updatedAt @db.Timestamptz(3)
+  id                      String          @id @default(uuid()) @db.Uuid
+  invoiceId               String          @db.Uuid
+  buyerId                 String          @db.Uuid
+  provider                PaymentProvider @default(STRIPE)
+  status                  PaymentStatus   @default(PENDING)
+  currency                String          @default("USD") @db.VarChar(3)
+  amount                  Decimal         @db.Decimal(14, 2)
+  idempotencyKey          String          @unique
+  providerPaymentIntentId String?         @unique
+  providerCheckoutSessionId String?       @unique
+  failureReason           String?
+  receiptUrl              String?
+  providerMetadata        Json?
+  initiatedAt             DateTime        @default(now()) @db.Timestamptz(3)
+  completedAt             DateTime?       @db.Timestamptz(3)
+  refundedAt              DateTime?       @db.Timestamptz(3)
+  createdAt               DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime        @updatedAt @db.Timestamptz(3)
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
   buyer   User    @relation("BuyerPayments", fields: [buyerId], references: [id], onDelete: Restrict)

@@ -1,150 +1,69 @@
 # ProcuraX Backend
 
-ProcuraX is a backend-first B2B procurement platform for managing RFQs, competitive supplier quotations, purchase orders, goods receipts, invoices, disputes and Stripe payments.
+ProcuraX is a backend-first B2B procurement platform for RFQs, competitive supplier quotations, purchase orders, goods receipts, invoicing, disputes, payments, and auditability.
 
-## Current scope — Commit 02
+## Stack
 
-The project now has a frozen Prisma/PostgreSQL contract for the procurement lifecycle:
+- Node.js + Express 5
+- TypeScript
+- PostgreSQL (Neon)
+- Prisma ORM
+- Zod
+- JWT access tokens + rotating opaque refresh tokens
+- Stripe (payment module in a later commit)
 
-- exactly three primary roles: `BUYER`, `SUPPLIER`, `ADMIN`
-- buyer and supplier company profiles
-- supplier verification and procurement-category specialization
-- RFQs and line items
-- competitive quotations and quote line items
-- purchase orders and immutable PO line-item snapshots
-- partial goods receipts
-- multiple invoices per purchase order
-- Stripe-ready payment records and persisted webhook-event idempotency
-- disputes, notifications and audit logs
-- refresh tokens plus email-verification/password-reset token persistence
-- deliberate PostgreSQL indexes and soft-delete fields
-- idempotent procurement-category seed
+## Current implementation
 
-The domain invariants that later service modules must obey are documented in `docs/DATA_MODEL.md`.
+Commit 03 adds the authentication foundation:
 
-## Runtime requirements
+- Buyer registration
+- Supplier registration with `PENDING` verification state
+- Email/password login
+- JWT Bearer access tokens
+- Rotating database-backed refresh tokens
+- Logout/revocation
+- Protected current-user endpoint
+- Role-aware authentication middleware
+- Authentication rate limiting
+- Registration/login audit logs
 
-- Node.js 22 LTS recommended
-- Node.js >= 20.19 supported by this project configuration
-- PostgreSQL hosted on Neon
+See `docs/AUTHENTICATION.md` and `docs/DATA_MODEL.md` for design rules.
 
 ## Local setup
 
-Keep the `.env` created in Commit 01. `DATABASE_URL` should be the Neon pooled runtime URL and `DIRECT_URL` the Neon direct URL used by Prisma CLI/migrations.
+1. Copy `.env.example` to `.env`.
+2. Add your Neon pooled and direct connection strings.
+3. Generate a strong access-token secret and add the authentication environment values.
+4. Run `npm install`.
+5. Run `npm run prisma:generate`.
+6. Apply existing migrations with `npm run db:migrate` during development or `npm run db:deploy` in deployment environments.
+7. Run `npm run db:seed` when reference data is needed.
+8. Start with `npm run dev`.
 
-Install dependencies if needed:
-
-```bash
-npm install
-```
-
-Format and validate the Prisma schema:
-
-```bash
-npm run prisma:format
-npm run prisma:validate
-```
-
-Create and apply the first migration to your development Neon database:
+Generate a local JWT secret with:
 
 ```bash
-npm run db:migrate -- --name init_procurement_core
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-Generate Prisma Client:
-
-```bash
-npm run prisma:generate
-```
-
-Seed the stable procurement categories explicitly (Prisma 7 does not implicitly seed after `migrate dev`):
-
-```bash
-npm run db:seed
-```
-
-Then verify the application still builds and starts:
-
-```bash
-npm run typecheck
-npm run check
-npm run dev
-```
-
-Health check:
-
-```http
-GET http://localhost:5000/api/v1/health
-```
-
-Expected key field:
-
-```json
-{
-  "success": true,
-  "data": {
-    "database": "connected"
-  }
-}
-```
-
-## Verify the seed
-
-Open Prisma Studio:
-
-```bash
-npm run db:studio
-```
-
-Check the `Category` table. It should contain eight records such as `IT & Electronics`, `Office Supplies`, `Industrial Equipment`, and `Professional Services`.
-
-Running `npm run db:seed` again is safe because categories are upserted by their unique slug.
-
-## Project structure
+## API base URL
 
 ```text
-src/
-├── app/
-│   ├── config/
-│   ├── errors/
-│   ├── middlewares/
-│   ├── modules/
-│   │   └── health/
-│   ├── routes/
-│   └── utils/
-├── generated/          # Prisma generated output; not committed
-├── lib/
-│   └── prisma.ts
-├── app.ts
-└── server.ts
-
-prisma/
-├── migrations/         # Generated locally by Prisma Migrate and committed
-├── schema.prisma
-└── seed.ts
-
-docs/
-└── DATA_MODEL.md
+http://localhost:5000/api/v1
 ```
 
-Business modules will use the same modular pattern where applicable:
+Important routes in this commit:
 
 ```text
-module/
-├── module.constant.ts
-├── module.controller.ts
-├── module.interface.ts
-├── module.route.ts
-├── module.service.ts
-└── module.validation.ts
+POST /auth/register/buyer
+POST /auth/register/supplier
+POST /auth/login
+POST /auth/refresh
+POST /auth/logout
+GET  /auth/me
+GET  /health
 ```
 
-## Local-only Postman files
+## Local Postman collection
 
-Some future commit ZIPs will include a `/postman` folder with the minimum requests needed to verify that commit. `/postman` is already ignored by Git and should not be force-added.
-
-## Commit message
-
-```text
-feat: define procurement database schema and seed data
-```
+`postman/` is intentionally ignored by Git during development. It is supplied only for local testing and will be cleaned up and committed as final API documentation near project completion.
