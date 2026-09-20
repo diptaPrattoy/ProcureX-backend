@@ -1,42 +1,39 @@
 # ProcuraX Backend
 
-ProcuraX is a backend-first B2B procurement platform for RFQs, competitive supplier quotations, purchase orders, goods receipts, invoices, payments, disputes, and compliance-friendly audit trails.
+ProcuraX is a modular B2B procurement backend built with Express, TypeScript, Prisma and PostgreSQL. It models the source-to-pay workflow from buyer RFQs through supplier quotations, purchase orders, receiving, invoicing and Stripe payments.
 
 ## Current implementation
 
-- Express 5 + TypeScript modular API
+- Express 5 + TypeScript modular architecture
 - Prisma 7 + PostgreSQL/Neon
-- BUYER / SUPPLIER / ADMIN role model
-- Email/password authentication with rotating refresh tokens
-- Google Identity ID-token authentication
-- Email verification and password recovery with hashed one-time tokens
-- Optional SMTP delivery with development console mail mode
-- Controlled ADMIN seeding
-- Audit logging foundation
-- Security middleware, rate limiting, CORS and Helmet
+- BUYER, SUPPLIER and ADMIN RBAC
+- Email/password authentication, Google sign-in, access/refresh sessions
+- Email verification and password recovery
+- Buyer and supplier business profiles
+- Supplier category assignment and ADMIN verification
+- Public verified-supplier discovery
+- Buyer RFQ draft lifecycle with line items
+- RFQ search/filter/sort/pagination
+- Supplier discovery of active procurement opportunities
+- Audit logging and soft deletion
+- Helmet, CORS and rate limiting
 
-## Local setup
+## RFQ lifecycle
 
-1. Copy `.env.example` to `.env`.
-2. Add your Neon pooled `DATABASE_URL` and direct `DIRECT_URL`.
-3. Generate a strong `JWT_ACCESS_SECRET`.
-4. Run `npm install`.
-5. Run `npm run prisma:generate`.
-6. Run `npm run db:migrate -- --name init_procurement_core` if the initial migration has not already been created.
-7. Run `npm run db:seed`.
-8. Run `npm run dev`.
+`DRAFT -> OPEN -> EVALUATING -> AWARDED -> CLOSED`
 
-The API defaults to `http://localhost:5000/api/v1`.
+Commit 06 implements `DRAFT -> OPEN`, buyer ownership, cancellation, soft deletion and supplier opportunity discovery. Quotation submission and award processing are added in later commits.
 
-## Optional Google auth
+## Local development
 
-Create a Google Cloud Web OAuth client and set `GOOGLE_CLIENT_ID`. The future frontend will pass the Google ID token/credential to `POST /api/v1/auth/google`.
+```bash
+npm install
+npm run prisma:generate
+npm run typecheck
+npm run check
+npm run dev
+```
 
-## Optional development ADMIN
+API base URL: `http://localhost:5000/api/v1`
 
-Set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` in `.env`, then run `npm run db:seed`. Never commit the credentials.
-
-
-## Current domain capabilities
-
-Authentication, buyer/supplier profiles, procurement category discovery, supplier category selection, public verified-supplier discovery, and ADMIN supplier verification are implemented.
+Detailed development notes and the Postman collection are kept locally during implementation (`docs/` and `postman/` are gitignored) and will be polished and committed near project completion.
