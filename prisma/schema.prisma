@@ -1,0 +1,13 @@
+generator client {
+  provider = "prisma-client"
+  output              = "../src/generated/prisma"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Domain models are intentionally introduced in Commit 02 after the ERD is frozen.
+// Keeping the database contract out of the bootstrap commit makes the Git history
+// meaningful while preventing temporary models from leaking into later migrations.
