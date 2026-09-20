@@ -39,6 +39,16 @@ const login = catchAsync(async (req, res) => {
   });
 });
 
+const googleAuth = catchAsync(async (req, res) => {
+  const result = await AuthService.googleAuth(req.body, getAuditContext(req));
+
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Google authentication successful",
+    data: result,
+  });
+});
+
 const refresh = catchAsync(async (req, res) => {
   const result = await AuthService.refresh(req.body);
 
@@ -55,6 +65,46 @@ const logout = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: 200,
     message: "Logout successful",
+    data: null,
+  });
+});
+
+const resendVerification = catchAsync(async (req, res) => {
+  await AuthService.resendVerification(req.body);
+
+  sendResponse(res, {
+    statusCode: 200,
+    message: "If the account needs verification, a verification email has been sent",
+    data: null,
+  });
+});
+
+const verifyEmail = catchAsync(async (req, res) => {
+  const user = await AuthService.verifyEmail(req.body, getAuditContext(req));
+
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Email verified successfully",
+    data: user,
+  });
+});
+
+const forgotPassword = catchAsync(async (req, res) => {
+  await AuthService.forgotPassword(req.body);
+
+  sendResponse(res, {
+    statusCode: 200,
+    message: "If the account can reset a password, reset instructions have been sent",
+    data: null,
+  });
+});
+
+const resetPassword = catchAsync(async (req, res) => {
+  await AuthService.resetPassword(req.body, getAuditContext(req));
+
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Password reset successfully. Please sign in again.",
     data: null,
   });
 });
@@ -77,7 +127,12 @@ export const AuthController = {
   registerBuyer,
   registerSupplier,
   login,
+  googleAuth,
   refresh,
   logout,
+  resendVerification,
+  verifyEmail,
+  forgotPassword,
+  resetPassword,
   me,
 };

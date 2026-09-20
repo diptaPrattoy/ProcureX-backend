@@ -46,7 +46,33 @@ export const refreshTokenSchema = z.object({
 
 export const logoutSchema = refreshTokenSchema;
 
+export const googleAuthSchema = z.object({
+  credential: z.string().trim().min(20, "Google credential is required"),
+  role: z.enum(["BUYER", "SUPPLIER"]).optional(),
+  companyName: z.string().trim().min(2).max(160).optional(),
+  legalName: z.string().trim().min(2).max(180).optional(),
+  city: z.string().trim().min(2).max(100).optional(),
+  country: z.string().trim().min(2).max(100).optional(),
+});
+
+export const emailOnlySchema = z.object({
+  email: emailSchema,
+});
+
+export const verifyEmailSchema = z.object({
+  token: z.string().trim().min(32, "Verification token is required"),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().trim().min(32, "Password reset token is required"),
+  newPassword: passwordSchema,
+});
+
 export type RegisterBuyerInput = z.infer<typeof registerBuyerSchema>;
 export type RegisterSupplierInput = z.infer<typeof registerSupplierSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
+export type GoogleAuthInput = z.infer<typeof googleAuthSchema>;
+export type EmailOnlyInput = z.infer<typeof emailOnlySchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

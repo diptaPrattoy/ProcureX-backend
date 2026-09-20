@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { hash } from "bcryptjs";
 import { PrismaClient } from "../src/generated/prisma/client";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -54,6 +55,58 @@ const categories = [
   },
 ] as const;
 
+const seedAdmin = async () => {
+  const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.SEED_ADMIN_PASSWORD;
+
+  if (!email && !password) {
+    console.log("Skipped ADMIN seed because SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD are not configured.");
+    return;
+  }
+
+  if (!email || !password) {
+    throw new Error("Both SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD are required to seed an ADMIN");
+  }
+
+  if (password.length < 8) {
+    throw new Error("SEED_ADMIN_PASSWORD must be at least 8 characters");
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+
+  if (existing && existing.role !== "ADMIN") {
+    throw new Error(`Cannot seed ADMIN: ${email} already belongs to a ${existing.role} account`);
+  }
+
+  const passwordHash = await hash(password, 12);
+  const firstName = process.env.SEED_ADMIN_FIRST_NAME?.trim() || "ProcuraX";
+  const lastName = process.env.SEED_ADMIN_LAST_NAME?.trim() || "Admin";
+
+  await prisma.user.upsert({
+    where: { email },
+    update: {
+      passwordHash,
+      firstName,
+      lastName,
+      role: "ADMIN",
+      status: "ACTIVE",
+      emailVerifiedAt: existing?.emailVerifiedAt ?? new Date(),
+      deletedAt: null,
+    },
+    create: {
+      email,
+      passwordHash,
+      firstName,
+      lastName,
+      role: "ADMIN",
+      status: "ACTIVE",
+      emailVerifiedAt: new Date(),
+    },
+  });
+
+  console.log(`Seeded ADMIN account: ${email}`);
+};
+
 async function main() {
   for (const category of categories) {
     await prisma.category.upsert({
@@ -69,6 +122,7 @@ async function main() {
   }
 
   console.log(`Seeded ${categories.length} procurement categories.`);
+  await seedAdmin();
 }
 
 main()
