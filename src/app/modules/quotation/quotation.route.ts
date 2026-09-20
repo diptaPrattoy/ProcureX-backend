@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { requireAuth, requireRoles } from "../../middlewares/auth.js";
 import { validateBody } from "../../middlewares/validateRequest.js";
+import { BuyerQuotationController } from "./quotation.buyer.controller.js";
 import { QuotationController } from "./quotation.controller.js";
 import { submitQuotationSchema, updateQuotationSchema } from "./quotation.validation.js";
 
 const rfqRouter = Router();
 const quotationRouter = Router();
 
+// Supplier quotation submission.
 rfqRouter.post(
   "/:rfqId/quotations",
   requireAuth,
@@ -15,6 +17,33 @@ rfqRouter.post(
   QuotationController.submit,
 );
 
+// Buyer evaluation and award workflow.
+rfqRouter.get(
+  "/:rfqId/quotations",
+  requireAuth,
+  requireRoles("BUYER"),
+  BuyerQuotationController.listForBuyer,
+);
+rfqRouter.get(
+  "/:rfqId/quotations/:quotationId",
+  requireAuth,
+  requireRoles("BUYER"),
+  BuyerQuotationController.getForBuyer,
+);
+rfqRouter.post(
+  "/:rfqId/evaluation/start",
+  requireAuth,
+  requireRoles("BUYER"),
+  BuyerQuotationController.startEvaluation,
+);
+rfqRouter.post(
+  "/:rfqId/quotations/:quotationId/award",
+  requireAuth,
+  requireRoles("BUYER"),
+  BuyerQuotationController.award,
+);
+
+// Supplier-owned quotation management.
 quotationRouter.get("/mine", requireAuth, requireRoles("SUPPLIER"), QuotationController.listMine);
 quotationRouter.get(
   "/mine/:quotationId",

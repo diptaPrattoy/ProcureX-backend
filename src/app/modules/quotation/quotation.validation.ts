@@ -55,6 +55,23 @@ export const myQuotationListQuerySchema = z.object({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
+
+export const buyerQuotationListQuerySchema = z.object({
+  status: z.enum(["SUBMITTED", "UNDER_REVIEW", "AWARDED", "REJECTED", "WITHDRAWN", "EXPIRED"]).optional(),
+  search: z.string().trim().min(1).max(120).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(50).default(20),
+  sortBy: z.enum(["submittedAt", "totalAmount", "deliveryDays", "validUntil"]).default("totalAmount"),
+  sortOrder: z.enum(["asc", "desc"]).default("asc"),
+});
+
+export const rfqQuotationParamsSchema = z.object({
+  rfqId: z.uuid(),
+  quotationId: z.uuid(),
+});
+
 export type SubmitQuotationInput = z.infer<typeof submitQuotationSchema>;
 export type UpdateQuotationInput = z.infer<typeof updateQuotationSchema>;
 export type MyQuotationListQuery = z.infer<typeof myQuotationListQuerySchema>;
+
+export type BuyerQuotationListQuery = z.infer<typeof buyerQuotationListQuerySchema>;
