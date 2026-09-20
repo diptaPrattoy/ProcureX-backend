@@ -14,6 +14,11 @@ const envSchema = z
     API_PREFIX: z.string().trim().startsWith("/").default("/api/v1"),
     DATABASE_URL: z.string().trim().min(1, "DATABASE_URL is required"),
     DIRECT_URL: z.string().trim().min(1, "DIRECT_URL is required"),
+    DB_POOL_MAX: z.coerce.number().int().positive().max(20).default(5),
+    DB_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().max(60000).default(10000),
+    DB_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().max(600000).default(60000),
+    DB_TRANSACTION_MAX_WAIT_MS: z.coerce.number().int().positive().max(60000).default(10000),
+    DB_TRANSACTION_TIMEOUT_MS: z.coerce.number().int().positive().max(120000).default(15000),
     CORS_ORIGINS: z.string().trim().default("http://localhost:3000"),
     CLIENT_APP_URL: z.url().default("http://localhost:3000"),
     JWT_ACCESS_SECRET: z

@@ -35,3 +35,8 @@ Create a Google Cloud Web OAuth client and set `GOOGLE_CLIENT_ID`. The future fr
 ## Optional development ADMIN
 
 Set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` in `.env`, then run `npm run db:seed`. Never commit the credentials.
+
+
+## Current domain capabilities
+
+Authentication, buyer/supplier profiles, procurement category discovery, supplier category selection, public verified-supplier discovery, and ADMIN supplier verification are implemented.
