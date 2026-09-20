@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client"
+  provider            = "prisma-client"
   output              = "../src/generated/prisma"
   importFileExtension = "ts"
 }
@@ -8,6 +8,612 @@ datasource db {
   provider = "postgresql"
 }
 
-// Domain models are intentionally introduced in Commit 02 after the ERD is frozen.
-// Keeping the database contract out of the bootstrap commit makes the Git history
-// meaningful while preventing temporary models from leaking into later migrations.
+enum UserRole {
+  BUYER
+  SUPPLIER
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum SupplierVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum RfqStatus {
+  DRAFT
+  OPEN
+  EVALUATING
+  AWARDED
+  CLOSED
+  CANCELLED
+  EXPIRED
+}
+
+enum QuotationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  AWARDED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum PurchaseOrderStatus {
+  ISSUED
+  ACCEPTED
+  REJECTED
+  IN_PROGRESS
+  PARTIALLY_DELIVERED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum GoodsReceiptStatus {
+  PENDING
+  ACCEPTED
+  PARTIALLY_ACCEPTED
+  REJECTED
+}
+
+enum InvoiceStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PAYMENT_PENDING
+  PAID
+  CANCELLED
+}
+
+enum PaymentProvider {
+  STRIPE
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+model User {
+  id              String        @id @default(uuid()) @db.Uuid
+  email           String        @unique
+  passwordHash    String?
+  googleId        String?       @unique
+  role            UserRole
+  status          AccountStatus @default(ACTIVE)
+  firstName       String
+  lastName        String
+  phone           String?
+  avatarUrl       String?
+  emailVerifiedAt DateTime?     @db.Timestamptz(3)
+  lastLoginAt     DateTime?     @db.Timestamptz(3)
+  deletedAt       DateTime?     @db.Timestamptz(3)
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(3)
+
+  buyerProfile             BuyerProfile?
+  supplierProfile          SupplierProfile?  @relation("SupplierOwner")
+  supplierProfilesVerified SupplierProfile[] @relation("SupplierVerifier")
+  refreshTokens            RefreshToken[]
+  authTokens               AuthToken[]
+  rfqsCreated              Rfq[]             @relation("BuyerRfqs")
+  quotations               Quotation[]       @relation("SupplierQuotations")
+  purchaseOrdersAsBuyer    PurchaseOrder[]   @relation("BuyerPurchaseOrders")
+  purchaseOrdersAsSupplier PurchaseOrder[]   @relation("SupplierPurchaseOrders")
+  goodsReceipts            GoodsReceipt[]    @relation("BuyerGoodsReceipts")
+  invoicesAsBuyer          Invoice[]         @relation("BuyerInvoices")
+  invoicesAsSupplier       Invoice[]         @relation("SupplierInvoices")
+  payments                 Payment[]         @relation("BuyerPayments")
+  disputesOpened           Dispute[]         @relation("DisputeOpenedBy")
+  disputesAgainst          Dispute[]         @relation("DisputeAgainst")
+  disputesResolved         Dispute[]         @relation("DisputeResolvedBy")
+  auditLogs                AuditLog[]        @relation("AuditActor")
+  notifications            Notification[]
+
+  @@index([role, status])
+  @@index([status, deletedAt])
+  @@index([createdAt])
+}
+
+model BuyerProfile {
+  id                     String   @id @default(uuid()) @db.Uuid
+  userId                 String   @unique @db.Uuid
+  companyName            String
+  legalName              String?
+  businessRegistrationNo String?
+  taxId                  String?
+  website                String?
+  addressLine1           String?
+  addressLine2           String?
+  city                   String?
+  state                  String?
+  postalCode             String?
+  country                String?
+  createdAt              DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([companyName])
+  @@index([city, country])
+}
+
+model SupplierProfile {
+  id                     String                     @id @default(uuid()) @db.Uuid
+  userId                 String                     @unique @db.Uuid
+  companyName            String
+  legalName              String?
+  businessRegistrationNo String?
+  taxId                  String?
+  website                String?
+  addressLine1           String?
+  addressLine2           String?
+  city                   String?
+  state                  String?
+  postalCode             String?
+  country                String?
+  verificationStatus     SupplierVerificationStatus @default(PENDING)
+  verificationNote       String?
+  verifiedAt             DateTime?                  @db.Timestamptz(3)
+  verifiedById           String?                    @db.Uuid
+  deletedAt              DateTime?                  @db.Timestamptz(3)
+  createdAt              DateTime                   @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime                   @updatedAt @db.Timestamptz(3)
+
+  user       User               @relation("SupplierOwner", fields: [userId], references: [id], onDelete: Restrict)
+  verifiedBy User?              @relation("SupplierVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  categories SupplierCategory[]
+
+  @@index([verificationStatus, deletedAt])
+  @@index([companyName])
+  @@index([city, country])
+  @@index([verifiedById])
+}
+
+model SupplierCategory {
+  id                String   @id @default(uuid()) @db.Uuid
+  supplierProfileId String   @db.Uuid
+  categoryId        String   @db.Uuid
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+
+  supplierProfile SupplierProfile @relation(fields: [supplierProfileId], references: [id], onDelete: Cascade)
+  category        Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@unique([supplierProfileId, categoryId])
+  @@index([categoryId, supplierProfileId])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model AuthToken {
+  id         String        @id @default(uuid()) @db.Uuid
+  userId     String        @db.Uuid
+  type       AuthTokenType
+  tokenHash  String        @unique
+  expiresAt  DateTime      @db.Timestamptz(3)
+  consumedAt DateTime?     @db.Timestamptz(3)
+  createdAt  DateTime      @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([expiresAt])
+}
+
+model Category {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  deletedAt   DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  rfqs               Rfq[]
+  supplierCategories SupplierCategory[]
+
+  @@index([isActive, deletedAt])
+}
+
+model Rfq {
+  id                   String    @id @default(uuid()) @db.Uuid
+  buyerId              String    @db.Uuid
+  categoryId           String    @db.Uuid
+  title                String
+  description          String
+  currency             String    @default("USD") @db.VarChar(3)
+  budgetMin            Decimal?  @db.Decimal(14, 2)
+  budgetMax            Decimal?  @db.Decimal(14, 2)
+  submissionDeadline   DateTime  @db.Timestamptz(3)
+  expectedDeliveryDate DateTime? @db.Date
+  deliveryAddressLine1 String?
+  deliveryAddressLine2 String?
+  deliveryCity         String?
+  deliveryState        String?
+  deliveryPostalCode   String?
+  deliveryCountry      String?
+  status               RfqStatus @default(DRAFT)
+  publishedAt          DateTime? @db.Timestamptz(3)
+  awardedAt            DateTime? @db.Timestamptz(3)
+  closedAt             DateTime? @db.Timestamptz(3)
+  cancelledAt          DateTime? @db.Timestamptz(3)
+  deletedAt            DateTime? @db.Timestamptz(3)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime  @updatedAt @db.Timestamptz(3)
+
+  buyer         User           @relation("BuyerRfqs", fields: [buyerId], references: [id], onDelete: Restrict)
+  category      Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  items         RfqItem[]
+  quotations    Quotation[]
+  purchaseOrder PurchaseOrder?
+
+  @@index([buyerId, status])
+  @@index([categoryId, status])
+  @@index([status, submissionDeadline])
+  @@index([deliveryCity, deliveryCountry])
+  @@index([deletedAt])
+  @@index([createdAt])
+}
+
+model RfqItem {
+  id             String   @id @default(uuid()) @db.Uuid
+  rfqId          String   @db.Uuid
+  itemName       String
+  description    String?
+  specifications Json?
+  quantity       Decimal  @db.Decimal(14, 3)
+  unit           String
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  rfq                Rfq                 @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  quotationItems     QuotationItem[]
+  purchaseOrderItems PurchaseOrderItem[]
+
+  @@index([rfqId])
+}
+
+model Quotation {
+  id           String          @id @default(uuid()) @db.Uuid
+  rfqId        String          @db.Uuid
+  supplierId   String          @db.Uuid
+  currency     String          @default("USD") @db.VarChar(3)
+  subtotal     Decimal         @db.Decimal(14, 2)
+  taxAmount    Decimal         @default(0) @db.Decimal(14, 2)
+  totalAmount  Decimal         @db.Decimal(14, 2)
+  deliveryDays Int
+  validUntil   DateTime        @db.Date
+  terms        String?
+  notes        String?
+  status       QuotationStatus @default(SUBMITTED)
+  submittedAt  DateTime        @default(now()) @db.Timestamptz(3)
+  reviewedAt   DateTime?       @db.Timestamptz(3)
+  awardedAt    DateTime?       @db.Timestamptz(3)
+  withdrawnAt  DateTime?       @db.Timestamptz(3)
+  deletedAt    DateTime?       @db.Timestamptz(3)
+  createdAt    DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime        @updatedAt @db.Timestamptz(3)
+
+  rfq           Rfq             @relation(fields: [rfqId], references: [id], onDelete: Restrict)
+  supplier      User            @relation("SupplierQuotations", fields: [supplierId], references: [id], onDelete: Restrict)
+  items         QuotationItem[]
+  purchaseOrder PurchaseOrder?
+
+  @@unique([rfqId, supplierId])
+  @@index([rfqId, status])
+  @@index([supplierId, status])
+  @@index([status, submittedAt])
+  @@index([deletedAt])
+}
+
+model QuotationItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  quotationId String   @db.Uuid
+  rfqItemId   String   @db.Uuid
+  quantity    Decimal  @db.Decimal(14, 3)
+  unitPrice   Decimal  @db.Decimal(14, 2)
+  lineTotal   Decimal  @db.Decimal(14, 2)
+  notes       String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  rfqItem   RfqItem   @relation(fields: [rfqItemId], references: [id], onDelete: Restrict)
+
+  @@unique([quotationId, rfqItemId])
+  @@index([rfqItemId])
+}
+
+model PurchaseOrder {
+  id              String              @id @default(uuid()) @db.Uuid
+  poNumber        String              @unique
+  rfqId           String              @unique @db.Uuid
+  quotationId     String              @unique @db.Uuid
+  buyerId         String              @db.Uuid
+  supplierId      String              @db.Uuid
+  currency        String              @default("USD") @db.VarChar(3)
+  subtotal        Decimal             @db.Decimal(14, 2)
+  taxAmount       Decimal             @default(0) @db.Decimal(14, 2)
+  totalAmount     Decimal             @db.Decimal(14, 2)
+  shippingAddress Json
+  notes           String?
+  status          PurchaseOrderStatus @default(ISSUED)
+  issuedAt        DateTime            @default(now()) @db.Timestamptz(3)
+  acceptedAt      DateTime?           @db.Timestamptz(3)
+  rejectedAt      DateTime?           @db.Timestamptz(3)
+  deliveredAt     DateTime?           @db.Timestamptz(3)
+  completedAt     DateTime?           @db.Timestamptz(3)
+  cancelledAt     DateTime?           @db.Timestamptz(3)
+  createdAt       DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime            @updatedAt @db.Timestamptz(3)
+
+  rfq           Rfq                 @relation(fields: [rfqId], references: [id], onDelete: Restrict)
+  quotation     Quotation           @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  buyer         User                @relation("BuyerPurchaseOrders", fields: [buyerId], references: [id], onDelete: Restrict)
+  supplier      User                @relation("SupplierPurchaseOrders", fields: [supplierId], references: [id], onDelete: Restrict)
+  items         PurchaseOrderItem[]
+  goodsReceipts GoodsReceipt[]
+  invoices      Invoice[]
+  disputes      Dispute[]
+
+  @@index([buyerId, status])
+  @@index([supplierId, status])
+  @@index([status, issuedAt])
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(uuid()) @db.Uuid
+  purchaseOrderId String   @db.Uuid
+  rfqItemId       String   @db.Uuid
+  itemName        String
+  description     String?
+  specifications  Json?
+  quantity        Decimal  @db.Decimal(14, 3)
+  unit            String
+  unitPrice       Decimal  @db.Decimal(14, 2)
+  lineTotal       Decimal  @db.Decimal(14, 2)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+
+  purchaseOrder     PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  rfqItem           RfqItem            @relation(fields: [rfqItemId], references: [id], onDelete: Restrict)
+  goodsReceiptItems GoodsReceiptItem[]
+  invoiceItems      InvoiceItem[]
+
+  @@unique([purchaseOrderId, rfqItemId])
+  @@index([rfqItemId])
+}
+
+model GoodsReceipt {
+  id              String             @id @default(uuid()) @db.Uuid
+  receiptNumber   String             @unique
+  purchaseOrderId String             @db.Uuid
+  buyerId         String             @db.Uuid
+  status          GoodsReceiptStatus @default(PENDING)
+  receivedAt      DateTime           @default(now()) @db.Timestamptz(3)
+  inspectedAt     DateTime?          @db.Timestamptz(3)
+  notes           String?
+  createdAt       DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @db.Timestamptz(3)
+
+  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  buyer         User               @relation("BuyerGoodsReceipts", fields: [buyerId], references: [id], onDelete: Restrict)
+  items         GoodsReceiptItem[]
+
+  @@index([purchaseOrderId, receivedAt])
+  @@index([buyerId, status])
+}
+
+model GoodsReceiptItem {
+  id                  String   @id @default(uuid()) @db.Uuid
+  goodsReceiptId      String   @db.Uuid
+  purchaseOrderItemId String   @db.Uuid
+  quantityReceived    Decimal  @db.Decimal(14, 3)
+  quantityAccepted    Decimal  @default(0) @db.Decimal(14, 3)
+  quantityRejected    Decimal  @default(0) @db.Decimal(14, 3)
+  notes               String?
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
+
+  goodsReceipt      GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderItem PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Restrict)
+
+  @@unique([goodsReceiptId, purchaseOrderItemId])
+  @@index([purchaseOrderItemId])
+}
+
+model Invoice {
+  id              String        @id @default(uuid()) @db.Uuid
+  invoiceNumber   String
+  purchaseOrderId String        @db.Uuid
+  supplierId      String        @db.Uuid
+  buyerId         String        @db.Uuid
+  currency        String        @default("USD") @db.VarChar(3)
+  subtotal        Decimal       @db.Decimal(14, 2)
+  taxAmount       Decimal       @default(0) @db.Decimal(14, 2)
+  totalAmount     Decimal       @db.Decimal(14, 2)
+  dueDate         DateTime      @db.Date
+  notes           String?
+  rejectionReason String?
+  status          InvoiceStatus @default(SUBMITTED)
+  submittedAt     DateTime      @default(now()) @db.Timestamptz(3)
+  reviewedAt      DateTime?     @db.Timestamptz(3)
+  approvedAt      DateTime?     @db.Timestamptz(3)
+  rejectedAt      DateTime?     @db.Timestamptz(3)
+  paidAt          DateTime?     @db.Timestamptz(3)
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(3)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  supplier      User          @relation("SupplierInvoices", fields: [supplierId], references: [id], onDelete: Restrict)
+  buyer         User          @relation("BuyerInvoices", fields: [buyerId], references: [id], onDelete: Restrict)
+  items         InvoiceItem[]
+  payments      Payment[]
+  disputes      Dispute[]
+
+  @@unique([supplierId, invoiceNumber])
+  @@index([purchaseOrderId, status])
+  @@index([buyerId, status])
+  @@index([supplierId, status])
+  @@index([status, dueDate])
+}
+
+model InvoiceItem {
+  id                  String   @id @default(uuid()) @db.Uuid
+  invoiceId           String   @db.Uuid
+  purchaseOrderItemId String   @db.Uuid
+  description         String?
+  quantity            Decimal  @db.Decimal(14, 3)
+  unitPrice           Decimal  @db.Decimal(14, 2)
+  lineTotal           Decimal  @db.Decimal(14, 2)
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
+
+  invoice           Invoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  purchaseOrderItem PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Restrict)
+
+  @@unique([invoiceId, purchaseOrderItemId])
+  @@index([purchaseOrderItemId])
+}
+
+model Payment {
+  id                        String          @id @default(uuid()) @db.Uuid
+  invoiceId                 String          @db.Uuid
+  buyerId                   String          @db.Uuid
+  provider                  PaymentProvider @default(STRIPE)
+  status                    PaymentStatus   @default(PENDING)
+  currency                  String          @default("USD") @db.VarChar(3)
+  amount                    Decimal         @db.Decimal(14, 2)
+  idempotencyKey            String          @unique
+  providerPaymentIntentId   String?         @unique
+  providerCheckoutSessionId String?         @unique
+  failureReason             String?
+  receiptUrl                String?
+  providerMetadata          Json?
+  initiatedAt               DateTime        @default(now()) @db.Timestamptz(3)
+  completedAt               DateTime?       @db.Timestamptz(3)
+  refundedAt                DateTime?       @db.Timestamptz(3)
+  createdAt                 DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime        @updatedAt @db.Timestamptz(3)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  buyer   User    @relation("BuyerPayments", fields: [buyerId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId, status])
+  @@index([buyerId, status])
+  @@index([status, createdAt])
+}
+
+model WebhookEvent {
+  id              String          @id @default(uuid()) @db.Uuid
+  provider        PaymentProvider @default(STRIPE)
+  providerEventId String          @unique
+  eventType       String
+  payload         Json?
+  processedAt     DateTime?       @db.Timestamptz(3)
+  processingError String?
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+
+  @@index([provider, eventType])
+  @@index([processedAt])
+  @@index([createdAt])
+}
+
+model Dispute {
+  id              String        @id @default(uuid()) @db.Uuid
+  purchaseOrderId String?       @db.Uuid
+  invoiceId       String?       @db.Uuid
+  openedById      String        @db.Uuid
+  againstUserId   String        @db.Uuid
+  resolvedById    String?       @db.Uuid
+  subject         String
+  description     String
+  status          DisputeStatus @default(OPEN)
+  resolution      String?
+  resolvedAt      DateTime?     @db.Timestamptz(3)
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(3)
+
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  invoice       Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  openedBy      User           @relation("DisputeOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
+  againstUser   User           @relation("DisputeAgainst", fields: [againstUserId], references: [id], onDelete: Restrict)
+  resolvedBy    User?          @relation("DisputeResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([purchaseOrderId, status])
+  @@index([invoiceId, status])
+  @@index([openedById, status])
+  @@index([againstUserId, status])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  type      String
+  title     String
+  message   String
+  metadata  Json?
+  readAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}

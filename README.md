@@ -1,82 +1,106 @@
 # ProcuraX Backend
 
-ProcuraX is a backend-first B2B procurement platform for managing RFQs, competitive supplier quotations, purchase orders, goods receipts, invoices, and Stripe payments.
+ProcuraX is a backend-first B2B procurement platform for managing RFQs, competitive supplier quotations, purchase orders, goods receipts, invoices, disputes and Stripe payments.
 
-## Commit 01 scope
+## Current scope — Commit 02
 
-This commit establishes the stable backend foundation only:
+The project now has a frozen Prisma/PostgreSQL contract for the procurement lifecycle:
 
-- Express 5 + TypeScript (ESM)
-- Modular Routes -> Controllers -> Services structure
-- Prisma 7 + PostgreSQL/Neon configuration
-- Neon pooled runtime connection and direct migration connection
-- Zod-validated environment variables
-- Helmet, CORS, and global rate limiting
-- Centralized error handling and mandatory API response shape
-- Database-backed health endpoint
-- Graceful shutdown and Prisma connection cleanup
-- Biome formatting/linting
-- Stripe raw-body mount point reserved before JSON parsing
+- exactly three primary roles: `BUYER`, `SUPPLIER`, `ADMIN`
+- buyer and supplier company profiles
+- supplier verification and procurement-category specialization
+- RFQs and line items
+- competitive quotations and quote line items
+- purchase orders and immutable PO line-item snapshots
+- partial goods receipts
+- multiple invoices per purchase order
+- Stripe-ready payment records and persisted webhook-event idempotency
+- disputes, notifications and audit logs
+- refresh tokens plus email-verification/password-reset token persistence
+- deliberate PostgreSQL indexes and soft-delete fields
+- idempotent procurement-category seed
 
-Domain models and migrations begin in Commit 02 after the ProcuraX ERD is frozen.
+The domain invariants that later service modules must obey are documented in `docs/DATA_MODEL.md`.
 
 ## Runtime requirements
 
 - Node.js 22 LTS recommended
 - Node.js >= 20.19 supported by this project configuration
-- A Neon PostgreSQL project
+- PostgreSQL hosted on Neon
 
 ## Local setup
 
-1. Copy `.env.example` to `.env`.
-2. In Neon, copy the **Pooled connection** string into `DATABASE_URL`.
-3. Copy the **Direct connection** string into `DIRECT_URL`.
-4. Install dependencies:
+Keep the `.env` created in Commit 01. `DATABASE_URL` should be the Neon pooled runtime URL and `DIRECT_URL` the Neon direct URL used by Prisma CLI/migrations.
 
-   ```bash
-   npm install
-   ```
+Install dependencies if needed:
 
-5. Generate Prisma Client:
+```bash
+npm install
+```
 
-   ```bash
-   npm run prisma:generate
-   ```
+Format and validate the Prisma schema:
 
-6. Validate the Prisma configuration:
+```bash
+npm run prisma:format
+npm run prisma:validate
+```
 
-   ```bash
-   npm run prisma:validate
-   ```
+Create and apply the first migration to your development Neon database:
 
-7. Start development mode:
+```bash
+npm run db:migrate -- --name init_procurement_core
+```
 
-   ```bash
-   npm run dev
-   ```
+Generate Prisma Client:
 
-8. Verify:
+```bash
+npm run prisma:generate
+```
 
-   ```http
-   GET http://localhost:5000/api/v1/health
-   ```
+Seed the stable procurement categories explicitly (Prisma 7 does not implicitly seed after `migrate dev`):
 
-Expected response shape:
+```bash
+npm run db:seed
+```
+
+Then verify the application still builds and starts:
+
+```bash
+npm run typecheck
+npm run check
+npm run dev
+```
+
+Health check:
+
+```http
+GET http://localhost:5000/api/v1/health
+```
+
+Expected key field:
 
 ```json
 {
   "success": true,
-  "message": "ProcuraX API is healthy",
   "data": {
-    "service": "procurax-api",
-    "status": "ok",
-    "environment": "development",
     "database": "connected"
   }
 }
 ```
 
-## Architecture
+## Verify the seed
+
+Open Prisma Studio:
+
+```bash
+npm run db:studio
+```
+
+Check the `Category` table. It should contain eight records such as `IT & Electronics`, `Office Supplies`, `Industrial Equipment`, and `Professional Services`.
+
+Running `npm run db:seed` again is safe because categories are upserted by their unique slug.
+
+## Project structure
 
 ```text
 src/
@@ -95,10 +119,15 @@ src/
 └── server.ts
 
 prisma/
-└── schema.prisma
+├── migrations/         # Generated locally by Prisma Migrate and committed
+├── schema.prisma
+└── seed.ts
+
+docs/
+└── DATA_MODEL.md
 ```
 
-Each business module will follow the same pattern where applicable:
+Business modules will use the same modular pattern where applicable:
 
 ```text
 module/
@@ -110,10 +139,12 @@ module/
 └── module.validation.ts
 ```
 
-## Git commit
+## Local-only Postman files
 
-Use this exact style for the first commit:
+Some future commit ZIPs will include a `/postman` folder with the minimum requests needed to verify that commit. `/postman` is already ignored by Git and should not be force-added.
+
+## Commit message
 
 ```text
-chore: bootstrap ProcuraX backend architecture
+feat: define procurement database schema and seed data
 ```
