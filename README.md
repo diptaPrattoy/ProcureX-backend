@@ -1,39 +1,20 @@
 # ProcuraX Backend
 
-ProcuraX is a modular B2B procurement backend built with Express, TypeScript, Prisma and PostgreSQL. It models the source-to-pay workflow from buyer RFQs through supplier quotations, purchase orders, receiving, invoicing and Stripe payments.
+ProcuraX is a modular B2B procurement backend built with Express, TypeScript, Prisma, PostgreSQL/Neon, JWT authentication, and Stripe-ready payment architecture.
 
 ## Current implementation
 
-- Express 5 + TypeScript modular architecture
-- Prisma 7 + PostgreSQL/Neon
-- BUYER, SUPPLIER and ADMIN RBAC
-- Email/password authentication, Google sign-in, access/refresh sessions
-- Email verification and password recovery
-- Buyer and supplier business profiles
-- Supplier category assignment and ADMIN verification
-- Public verified-supplier discovery
-- Buyer RFQ draft lifecycle with line items
-- RFQ search/filter/sort/pagination
-- Supplier discovery of active procurement opportunities
-- Audit logging and soft deletion
-- Helmet, CORS and rate limiting
+Commits 01–07 now provide:
 
-## RFQ lifecycle
+- production-oriented Express/TypeScript foundation
+- PostgreSQL/Neon + Prisma data model
+- secure email/password and Google authentication
+- refresh-token rotation and account recovery
+- buyer/supplier/admin roles
+- supplier onboarding, category specialization, and admin verification
+- buyer RFQ draft/publish/discovery lifecycle
+- verified supplier quotation submission, editing, withdrawal, and server-side pricing
+- audit logging, validation, rate limiting, Helmet, and CORS
+- automated domain verification via `npm run verify`
 
-`DRAFT -> OPEN -> EVALUATING -> AWARDED -> CLOSED`
-
-Commit 06 implements `DRAFT -> OPEN`, buyer ownership, cancellation, soft deletion and supplier opportunity discovery. Quotation submission and award processing are added in later commits.
-
-## Local development
-
-```bash
-npm install
-npm run prisma:generate
-npm run typecheck
-npm run check
-npm run dev
-```
-
-API base URL: `http://localhost:5000/api/v1`
-
-Detailed development notes and the Postman collection are kept locally during implementation (`docs/` and `postman/` are gitignored) and will be polished and committed near project completion.
+Local development documentation and the canonical Postman collection remain ignored until the final submission commit.
