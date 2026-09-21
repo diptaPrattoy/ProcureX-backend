@@ -1,0 +1,7 @@
+docs/
+postman/
+tests/
+README.md
+biome.json
+*.log
+coverage/

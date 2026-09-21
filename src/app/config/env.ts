@@ -7,11 +7,18 @@ const optionalTrimmedString = z
   .optional()
   .transform((value) => (value ? value : undefined));
 
+const booleanFromString = (defaultValue: "true" | "false") =>
+  z
+    .enum(["true", "false"])
+    .default(defaultValue)
+    .transform((value) => value === "true");
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     PORT: z.coerce.number().int().positive().max(65535).default(5000),
     API_PREFIX: z.string().trim().startsWith("/").default("/api/v1"),
+
     DATABASE_URL: z.string().trim().min(1, "DATABASE_URL is required"),
     DIRECT_URL: z.string().trim().min(1, "DIRECT_URL is required"),
     DB_POOL_MAX: z.coerce.number().int().positive().max(20).default(5),
@@ -19,8 +26,10 @@ const envSchema = z
     DB_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().max(600000).default(60000),
     DB_TRANSACTION_MAX_WAIT_MS: z.coerce.number().int().positive().max(60000).default(10000),
     DB_TRANSACTION_TIMEOUT_MS: z.coerce.number().int().positive().max(120000).default(15000),
+
     CORS_ORIGINS: z.string().trim().default("http://localhost:3000"),
     CLIENT_APP_URL: z.url().default("http://localhost:3000"),
+
     JWT_ACCESS_SECRET: z
       .string()
       .min(32, "JWT_ACCESS_SECRET must be at least 32 characters")
@@ -31,7 +40,9 @@ const envSchema = z
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().max(365).default(30),
     JWT_ISSUER: z.string().trim().min(1).default("procurax-api"),
     JWT_AUDIENCE: z.string().trim().min(1).default("procurax-client"),
+
     GOOGLE_CLIENT_ID: optionalTrimmedString,
+
     EMAIL_VERIFICATION_TTL_HOURS: z.coerce.number().int().positive().max(168).default(24),
     PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().positive().max(180).default(30),
     EMAIL_DELIVERY_MODE: z.enum(["console", "smtp"]).default("console"),
@@ -39,25 +50,26 @@ const envSchema = z
     MAIL_FROM_EMAIL: z.email().default("no-reply@procurax.local"),
     SMTP_HOST: optionalTrimmedString,
     SMTP_PORT: z.coerce.number().int().positive().max(65535).default(587),
-    SMTP_SECURE: z
-      .enum(["true", "false"])
-      .default("false")
-      .transform((value) => value === "true"),
+    SMTP_SECURE: booleanFromString("false"),
     SMTP_USER: optionalTrimmedString,
     SMTP_PASS: optionalTrimmedString,
+
     STRIPE_SECRET_KEY: optionalTrimmedString,
     STRIPE_WEBHOOK_SECRET: optionalTrimmedString,
     STRIPE_SUCCESS_URL: z.url().default("http://localhost:3000/payments/success?session_id={CHECKOUT_SESSION_ID}"),
     STRIPE_CANCEL_URL: z.url().default("http://localhost:3000/payments/cancel"),
-    CACHE_ENABLED: z
-      .enum(["true", "false"])
-      .default("true")
-      .transform((value) => value === "true"),
+
+    CACHE_ENABLED: booleanFromString("true"),
     UPSTASH_REDIS_REST_URL: optionalTrimmedString,
     UPSTASH_REDIS_REST_TOKEN: optionalTrimmedString,
     CACHE_CATEGORY_TTL_SECONDS: z.coerce.number().int().positive().max(86400).default(600),
     CACHE_SUPPLIER_TTL_SECONDS: z.coerce.number().int().positive().max(3600).default(120),
     CACHE_ANALYTICS_TTL_SECONDS: z.coerce.number().int().positive().max(600).default(30),
+
+    RATE_LIMIT_ENABLED: booleanFromString("true"),
+    RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(1440).default(15),
+    RATE_LIMIT_GLOBAL_LIMIT: z.coerce.number().int().positive().max(100000).default(300),
+    RATE_LIMIT_AUTH_LIMIT: z.coerce.number().int().positive().max(10000).default(10),
   })
   .superRefine((value, ctx) => {
     if (value.EMAIL_DELIVERY_MODE === "smtp") {
@@ -82,14 +94,67 @@ const envSchema = z
       });
     }
 
+    const corsOrigins = value.CORS_ORIGINS.split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+
+    if (corsOrigins.length === 0 || corsOrigins.includes("*")) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["CORS_ORIGINS"],
+        message: "CORS_ORIGINS must contain explicit origins and cannot use '*'",
+      });
+    }
+
     if (value.NODE_ENV === "production") {
-      for (const key of ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const) {
+      for (const key of ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "GOOGLE_CLIENT_ID"] as const) {
         if (!value[key]) {
           ctx.addIssue({
             code: "custom",
             path: [key],
             message: `${key} is required in production`,
           });
+        }
+      }
+
+      if (value.EMAIL_DELIVERY_MODE !== "smtp") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["EMAIL_DELIVERY_MODE"],
+          message: "EMAIL_DELIVERY_MODE must be smtp in production",
+        });
+      }
+
+      if ((value.CACHE_ENABLED || value.RATE_LIMIT_ENABLED) && (!hasRedisUrl || !hasRedisToken)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["UPSTASH_REDIS_REST_URL"],
+          message: "Upstash Redis credentials are required in production when cache or rate limiting is enabled",
+        });
+      }
+
+      for (const [key, url] of [
+        ["CLIENT_APP_URL", value.CLIENT_APP_URL],
+        ["STRIPE_SUCCESS_URL", value.STRIPE_SUCCESS_URL],
+        ["STRIPE_CANCEL_URL", value.STRIPE_CANCEL_URL],
+      ] as const) {
+        if (!url.startsWith("https://")) {
+          ctx.addIssue({
+            code: "custom",
+            path: [key],
+            message: `${key} must use HTTPS in production`,
+          });
+        }
+      }
+
+      for (const origin of corsOrigins) {
+        if (!origin.startsWith("https://")) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["CORS_ORIGINS"],
+            message: "Every production CORS origin must use HTTPS",
+          });
+          break;
         }
       }
     }

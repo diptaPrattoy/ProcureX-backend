@@ -18,3 +18,5 @@ import "./notification.domain.test.js";
 import "./admin-dashboard.domain.test.js";
 
 import "./cache.domain.test.js";
+
+import "./rate-limit.domain.test.js";

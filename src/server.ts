@@ -5,16 +5,16 @@ import { prisma } from "./lib/prisma.js";
 
 let server: Server | undefined;
 
-const startServer = async (): Promise<void> => {
+const startServer = (): void => {
   try {
-    await prisma.$connect();
-
+    // Prisma/pg connects lazily on the first database query. Avoid forcing a
+    // network handshake during a Vercel cold start; readiness is checked by
+    // the health endpoint instead.
     server = app.listen(env.PORT, () => {
-      console.log(`ProcuraX API listening on http://localhost:${env.PORT}${env.API_PREFIX}`);
+      console.log(`ProcuraX API listening on port ${env.PORT}${env.API_PREFIX}`);
     });
   } catch (error) {
     console.error("Failed to start ProcuraX API", error);
-    await prisma.$disconnect().catch(() => undefined);
     process.exit(1);
   }
 };
@@ -24,14 +24,13 @@ const shutdown = async (signal: string): Promise<void> => {
 
   if (server) {
     server.close(async () => {
-      await prisma.$disconnect();
+      await prisma.$disconnect().catch(() => undefined);
       process.exit(0);
     });
-
     return;
   }
 
-  await prisma.$disconnect();
+  await prisma.$disconnect().catch(() => undefined);
   process.exit(0);
 };
 
@@ -53,4 +52,4 @@ process.on("uncaughtException", (error) => {
   void shutdown("uncaughtException");
 });
 
-void startServer();
+startServer();
