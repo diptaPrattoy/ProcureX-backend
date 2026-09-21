@@ -12,3 +12,5 @@ import "./payment.domain.test.js";
 import "./refund.domain.test.js";
 
 import "./dispute.domain.test.js";
+
+import "./notification.domain.test.js";
