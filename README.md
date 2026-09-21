@@ -11,6 +11,7 @@ ProcuraX is a modular B2B procurement backend built with Express, TypeScript, Pr
 - supplier quotation submission and management
 - buyer quotation comparison and evaluation
 - transactional quotation award and purchase-order issuance
+- purchase-order ownership, acceptance, rejection and fulfillment state management
 - audit logging, soft-delete-aware queries and pagination/filtering
 
 ## Development verification

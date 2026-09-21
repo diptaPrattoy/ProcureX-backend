@@ -432,6 +432,20 @@ const award = async (
       ...context,
     });
 
+    await tx.notification.create({
+      data: {
+        userId: quotation.supplierId,
+        type: "PURCHASE_ORDER_ISSUED",
+        title: "New purchase order issued",
+        message: `${purchaseOrder.poNumber} has been issued from your awarded quotation.`,
+        metadata: {
+          purchaseOrderId: purchaseOrder.id,
+          poNumber: purchaseOrder.poNumber,
+          rfqId,
+        },
+      },
+    });
+
     return purchaseOrder;
   });
 };
