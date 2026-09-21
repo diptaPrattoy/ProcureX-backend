@@ -4,3 +4,5 @@ import "./purchase-order.domain.test.js";
 import "./goods-receipt.domain.test.js";
 
 import "./invoice.domain.test.js";
+
+import "./invoice-review.domain.test.js";

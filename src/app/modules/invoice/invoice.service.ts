@@ -2,7 +2,13 @@ import type { Prisma, UserRole } from "../../../generated/prisma/client.js";
 import { prisma } from "../../../lib/prisma.js";
 import { AppError } from "../../errors/AppError.js";
 import { AuditService, type AuditContext } from "../audit/audit.service.js";
-import { assertInvoiceCancellationAllowed, calculateInvoice } from "./invoice.domain.js";
+import {
+  assertInvoiceApprovalAllowed,
+  assertInvoiceCancellationAllowed,
+  assertInvoiceRejectionAllowed,
+  assertInvoiceReviewStartAllowed,
+  calculateInvoice,
+} from "./invoice.domain.js";
 import type { CreateInvoiceInput, InvoiceListQuery } from "./invoice.validation.js";
 
 const invoiceListSelect = {
@@ -335,6 +341,216 @@ const getById = async (userId: string, role: ProcurementRole, invoiceId: string)
   return invoice;
 };
 
+
+const startReview = async (buyerId: string, invoiceId: string, context: AuditContext) => {
+  return prisma.$transaction(async (tx) => {
+    const invoice = await tx.invoice.findFirst({
+      where: { id: invoiceId, buyerId },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        supplierId: true,
+        purchaseOrderId: true,
+        status: true,
+      },
+    });
+    if (!invoice) {
+      throw new AppError(404, "Invoice not found");
+    }
+
+    assertInvoiceReviewStartAllowed(invoice.status);
+
+    const now = new Date();
+    const updated = await tx.invoice.updateMany({
+      where: { id: invoice.id, buyerId, status: "SUBMITTED" },
+      data: {
+        status: "UNDER_REVIEW",
+        reviewedAt: now,
+        rejectionReason: null,
+        rejectedAt: null,
+        approvedAt: null,
+      },
+    });
+    if (updated.count !== 1) {
+      throw new AppError(409, "Invoice status changed; refresh and try again");
+    }
+
+    await AuditService.create(tx, {
+      actorId: buyerId,
+      action: "INVOICE_REVIEW_STARTED",
+      entityType: "Invoice",
+      entityId: invoice.id,
+      metadata: {
+        invoiceNumber: invoice.invoiceNumber,
+        purchaseOrderId: invoice.purchaseOrderId,
+      },
+      ...context,
+    });
+
+    await tx.notification.create({
+      data: {
+        userId: invoice.supplierId,
+        type: "INVOICE_UNDER_REVIEW",
+        title: "Invoice under review",
+        message: `${invoice.invoiceNumber} is now under buyer review.`,
+        metadata: {
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          purchaseOrderId: invoice.purchaseOrderId,
+        },
+      },
+    });
+
+    return tx.invoice.findUniqueOrThrow({
+      where: { id: invoice.id },
+      select: invoiceDetailSelect,
+    });
+  });
+};
+
+const approve = async (buyerId: string, invoiceId: string, context: AuditContext) => {
+  return prisma.$transaction(async (tx) => {
+    const invoice = await tx.invoice.findFirst({
+      where: { id: invoiceId, buyerId },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        supplierId: true,
+        purchaseOrderId: true,
+        currency: true,
+        totalAmount: true,
+        status: true,
+      },
+    });
+    if (!invoice) {
+      throw new AppError(404, "Invoice not found");
+    }
+
+    assertInvoiceApprovalAllowed(invoice.status);
+
+    const now = new Date();
+    const updated = await tx.invoice.updateMany({
+      where: { id: invoice.id, buyerId, status: "UNDER_REVIEW" },
+      data: {
+        status: "APPROVED",
+        approvedAt: now,
+        rejectionReason: null,
+        rejectedAt: null,
+      },
+    });
+    if (updated.count !== 1) {
+      throw new AppError(409, "Invoice status changed; refresh and try again");
+    }
+
+    await AuditService.create(tx, {
+      actorId: buyerId,
+      action: "INVOICE_APPROVED",
+      entityType: "Invoice",
+      entityId: invoice.id,
+      metadata: {
+        invoiceNumber: invoice.invoiceNumber,
+        purchaseOrderId: invoice.purchaseOrderId,
+        currency: invoice.currency,
+        totalAmount: Number(invoice.totalAmount),
+      },
+      ...context,
+    });
+
+    await tx.notification.create({
+      data: {
+        userId: invoice.supplierId,
+        type: "INVOICE_APPROVED",
+        title: "Invoice approved",
+        message: `${invoice.invoiceNumber} was approved and is ready for payment.`,
+        metadata: {
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          purchaseOrderId: invoice.purchaseOrderId,
+          totalAmount: Number(invoice.totalAmount),
+          currency: invoice.currency,
+        },
+      },
+    });
+
+    return tx.invoice.findUniqueOrThrow({
+      where: { id: invoice.id },
+      select: invoiceDetailSelect,
+    });
+  });
+};
+
+const reject = async (
+  buyerId: string,
+  invoiceId: string,
+  reason: string,
+  context: AuditContext,
+) => {
+  return prisma.$transaction(async (tx) => {
+    const invoice = await tx.invoice.findFirst({
+      where: { id: invoiceId, buyerId },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        supplierId: true,
+        purchaseOrderId: true,
+        status: true,
+      },
+    });
+    if (!invoice) {
+      throw new AppError(404, "Invoice not found");
+    }
+
+    assertInvoiceRejectionAllowed(invoice.status);
+
+    const now = new Date();
+    const updated = await tx.invoice.updateMany({
+      where: { id: invoice.id, buyerId, status: "UNDER_REVIEW" },
+      data: {
+        status: "REJECTED",
+        rejectionReason: reason,
+        rejectedAt: now,
+        approvedAt: null,
+      },
+    });
+    if (updated.count !== 1) {
+      throw new AppError(409, "Invoice status changed; refresh and try again");
+    }
+
+    await AuditService.create(tx, {
+      actorId: buyerId,
+      action: "INVOICE_REJECTED",
+      entityType: "Invoice",
+      entityId: invoice.id,
+      metadata: {
+        invoiceNumber: invoice.invoiceNumber,
+        purchaseOrderId: invoice.purchaseOrderId,
+        reason,
+      },
+      ...context,
+    });
+
+    await tx.notification.create({
+      data: {
+        userId: invoice.supplierId,
+        type: "INVOICE_REJECTED",
+        title: "Invoice rejected",
+        message: `${invoice.invoiceNumber} was rejected by the buyer.`,
+        metadata: {
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          purchaseOrderId: invoice.purchaseOrderId,
+          reason,
+        },
+      },
+    });
+
+    return tx.invoice.findUniqueOrThrow({
+      where: { id: invoice.id },
+      select: invoiceDetailSelect,
+    });
+  });
+};
+
 const cancel = async (supplierId: string, invoiceId: string, context: AuditContext) => {
   return prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findFirst({
@@ -399,5 +615,8 @@ export const InvoiceService = {
   listMine,
   listByPurchaseOrder,
   getById,
+  startReview,
+  approve,
+  reject,
   cancel,
 };

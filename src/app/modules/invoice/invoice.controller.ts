@@ -9,6 +9,7 @@ import {
   invoiceIdParamSchema,
   invoiceListQuerySchema,
   purchaseOrderInvoiceParamSchema,
+  rejectInvoiceSchema,
 } from "./invoice.validation.js";
 
 const getAuditContext = (req: Request) => ({
@@ -24,6 +25,17 @@ const requirePrincipal = (req: Request): { id: string; role: Extract<UserRole, "
     throw new AppError(403, "Only buyers and suppliers can access invoices");
   }
   return { id: req.authUser.id, role: req.authUser.role };
+};
+
+
+const requireBuyer = (req: Request) => {
+  if (!req.authUser) {
+    throw new AppError(401, "Authentication required");
+  }
+  if (req.authUser.role !== "BUYER") {
+    throw new AppError(403, "Only the buyer can review invoices");
+  }
+  return req.authUser.id;
 };
 
 const create = catchAsync(async (req: Request, res: Response) => {
@@ -69,6 +81,34 @@ const getById = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: 200, message: "Invoice retrieved successfully", data });
 });
 
+
+const startReview = catchAsync(async (req: Request, res: Response) => {
+  const buyerId = requireBuyer(req);
+  const { invoiceId } = invoiceIdParamSchema.parse(req.params);
+  const data = await InvoiceService.startReview(buyerId, invoiceId, getAuditContext(req));
+  sendResponse(res, { statusCode: 200, message: "Invoice review started successfully", data });
+});
+
+const approve = catchAsync(async (req: Request, res: Response) => {
+  const buyerId = requireBuyer(req);
+  const { invoiceId } = invoiceIdParamSchema.parse(req.params);
+  const data = await InvoiceService.approve(buyerId, invoiceId, getAuditContext(req));
+  sendResponse(res, { statusCode: 200, message: "Invoice approved successfully", data });
+});
+
+const reject = catchAsync(async (req: Request, res: Response) => {
+  const buyerId = requireBuyer(req);
+  const { invoiceId } = invoiceIdParamSchema.parse(req.params);
+  const input = rejectInvoiceSchema.parse(req.body);
+  const data = await InvoiceService.reject(
+    buyerId,
+    invoiceId,
+    input.reason,
+    getAuditContext(req),
+  );
+  sendResponse(res, { statusCode: 200, message: "Invoice rejected successfully", data });
+});
+
 const cancel = catchAsync(async (req: Request, res: Response) => {
   const principal = requirePrincipal(req);
   if (principal.role !== "SUPPLIER") {
@@ -84,5 +124,8 @@ export const InvoiceController = {
   listMine,
   listByPurchaseOrder,
   getById,
+  startReview,
+  approve,
+  reject,
   cancel,
 };

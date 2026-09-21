@@ -110,3 +110,31 @@ export const assertInvoiceCancellationAllowed = (status: string) => {
     throw new AppError(409, "Only submitted invoices can be cancelled by the supplier");
   }
 };
+
+
+export type InvoiceReviewableStatus =
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+  | "PAYMENT_PENDING"
+  | "PAID"
+  | "CANCELLED";
+
+export const assertInvoiceReviewStartAllowed = (status: InvoiceReviewableStatus) => {
+  if (status !== "SUBMITTED") {
+    throw new AppError(409, "Only submitted invoices can enter review");
+  }
+};
+
+export const assertInvoiceApprovalAllowed = (status: InvoiceReviewableStatus) => {
+  if (status !== "UNDER_REVIEW") {
+    throw new AppError(409, "Only invoices under review can be approved");
+  }
+};
+
+export const assertInvoiceRejectionAllowed = (status: InvoiceReviewableStatus) => {
+  if (status !== "UNDER_REVIEW") {
+    throw new AppError(409, "Only invoices under review can be rejected");
+  }
+};

@@ -68,3 +68,10 @@ export const invoiceListQuerySchema = z.object({
 
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
+
+
+export const rejectInvoiceSchema = z.object({
+  reason: z.string().trim().min(5).max(500),
+});
+
+export type RejectInvoiceInput = z.infer<typeof rejectInvoiceSchema>;
