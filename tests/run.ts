@@ -8,3 +8,7 @@ import "./invoice.domain.test.js";
 import "./invoice-review.domain.test.js";
 
 import "./payment.domain.test.js";
+
+import "./refund.domain.test.js";
+
+import "./dispute.domain.test.js";

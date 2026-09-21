@@ -2,6 +2,8 @@ import type Stripe from "stripe";
 import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../../lib/prisma.js";
 import { AuditService } from "../audit/audit.service.js";
+import { mapStripeRefundStatus } from "../refund/refund.domain.js";
+import { reconcilePaymentRefundStatus } from "../refund/refund.reconciliation.js";
 
 type WebhookTransaction = Prisma.TransactionClient;
 
@@ -17,6 +19,116 @@ const paymentIntentIdFromSession = (session: Stripe.Checkout.Session) => {
 
 const paymentIdFromMetadata = (metadata: Record<string, string> | null | undefined) =>
   metadata?.paymentId?.trim() || null;
+
+const refundRequestIdFromMetadata = (metadata: Record<string, string> | null | undefined) =>
+  metadata?.refundRequestId?.trim() || null;
+
+const applyRefundUpdate = async (tx: WebhookTransaction, providerRefund: Stripe.Refund) => {
+  const refundRequestId = refundRequestIdFromMetadata(providerRefund.metadata);
+  const localRefund = refundRequestId
+    ? await tx.refund.findUnique({
+        where: { id: refundRequestId },
+        select: {
+          id: true,
+          paymentId: true,
+          invoiceId: true,
+          requestedById: true,
+          status: true,
+          providerRefundId: true,
+          invoice: { select: { supplierId: true, invoiceNumber: true } },
+        },
+      })
+    : await tx.refund.findUnique({
+        where: { providerRefundId: providerRefund.id },
+        select: {
+          id: true,
+          paymentId: true,
+          invoiceId: true,
+          requestedById: true,
+          status: true,
+          providerRefundId: true,
+          invoice: { select: { supplierId: true, invoiceNumber: true } },
+        },
+      });
+
+  if (!localRefund || localRefund.status === "REJECTED" || localRefund.status === "CANCELLED") {
+    return;
+  }
+  if (localRefund.providerRefundId && localRefund.providerRefundId !== providerRefund.id) {
+    return;
+  }
+
+  const nextStatus = mapStripeRefundStatus(providerRefund.status ?? "pending");
+  const previousStatus = localRefund.status;
+  const terminal = ["SUCCEEDED", "FAILED", "CANCELLED"].includes(nextStatus);
+
+  await tx.refund.update({
+    where: { id: localRefund.id },
+    data: {
+      status: nextStatus,
+      providerRefundId: providerRefund.id,
+      providerStatus: providerRefund.status ?? "unknown",
+      failureReason: providerRefund.failure_reason ?? null,
+      completedAt: terminal ? new Date() : null,
+    },
+  });
+
+  const reconciliation = await reconcilePaymentRefundStatus(tx, localRefund.paymentId);
+  if (previousStatus === nextStatus) {
+    return;
+  }
+
+  const action =
+    nextStatus === "SUCCEEDED"
+      ? "REFUND_SUCCEEDED"
+      : nextStatus === "FAILED" || nextStatus === "CANCELLED"
+        ? "REFUND_FAILED"
+        : "REFUND_PROVIDER_UPDATED";
+
+  await AuditService.create(tx, {
+    action,
+    entityType: "Refund",
+    entityId: localRefund.id,
+    metadata: {
+      paymentId: localRefund.paymentId,
+      invoiceId: localRefund.invoiceId,
+      providerRefundId: providerRefund.id,
+      providerStatus: providerRefund.status,
+      fullyRefunded: reconciliation.fullyRefunded,
+    },
+  });
+
+  if (nextStatus === "SUCCEEDED") {
+    await tx.notification.createMany({
+      data: [
+        {
+          userId: localRefund.requestedById,
+          type: "REFUND_SUCCEEDED",
+          title: "Refund completed",
+          message: `Your refund for ${localRefund.invoice.invoiceNumber} has completed successfully.`,
+          metadata: { refundId: localRefund.id, paymentId: localRefund.paymentId, invoiceId: localRefund.invoiceId },
+        },
+        {
+          userId: localRefund.invoice.supplierId,
+          type: "REFUND_SUCCEEDED",
+          title: "Payment refunded",
+          message: `A refund for ${localRefund.invoice.invoiceNumber} has completed.`,
+          metadata: { refundId: localRefund.id, paymentId: localRefund.paymentId, invoiceId: localRefund.invoiceId },
+        },
+      ],
+    });
+  } else if (nextStatus === "FAILED" || nextStatus === "CANCELLED") {
+    await tx.notification.create({
+      data: {
+        userId: localRefund.requestedById,
+        type: "REFUND_FAILED",
+        title: "Refund could not be completed",
+        message: `The refund for ${localRefund.invoice.invoiceNumber} could not be completed.`,
+        metadata: { refundId: localRefund.id, paymentId: localRefund.paymentId, invoiceId: localRefund.invoiceId },
+      },
+    });
+  }
+};
 
 const markSucceeded = async (
   tx: WebhookTransaction,
@@ -238,6 +350,13 @@ const applyStripeEvent = async (tx: WebhookTransaction, event: Stripe.Event) => 
           intent.id,
         );
       }
+      return;
+    }
+    case "refund.created":
+    case "refund.updated":
+    case "refund.failed": {
+      const providerRefund = event.data.object as Stripe.Refund;
+      await applyRefundUpdate(tx, providerRefund);
       return;
     }
     default:

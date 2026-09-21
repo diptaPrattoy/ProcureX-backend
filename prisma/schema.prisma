@@ -91,6 +91,16 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum RefundStatus {
+  REQUESTED
+  APPROVED
+  PROCESSING
+  SUCCEEDED
+  REJECTED
+  FAILED
+  CANCELLED
+}
+
 enum DisputeStatus {
   OPEN
   UNDER_REVIEW
@@ -128,6 +138,8 @@ model User {
   invoicesAsBuyer          Invoice[]                 @relation("BuyerInvoices")
   invoicesAsSupplier       Invoice[]                 @relation("SupplierInvoices")
   payments                 Payment[]                 @relation("BuyerPayments")
+  refundsRequested         Refund[]                  @relation("RefundRequestedBy")
+  refundsReviewed          Refund[]                  @relation("RefundReviewedBy")
   disputesOpened           Dispute[]                 @relation("DisputeOpenedBy")
   disputesAgainst          Dispute[]                 @relation("DisputeAgainst")
   disputesResolved         Dispute[]                 @relation("DisputeResolvedBy")
@@ -486,6 +498,7 @@ model Invoice {
   buyer         User          @relation("BuyerInvoices", fields: [buyerId], references: [id], onDelete: Restrict)
   items         InvoiceItem[]
   payments      Payment[]
+  refunds       Refund[]
   disputes      Dispute[]
 
   @@unique([supplierId, invoiceNumber])
@@ -533,12 +546,45 @@ model Payment {
   createdAt               DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt               DateTime        @updatedAt @db.Timestamptz(3)
 
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-  buyer   User    @relation("BuyerPayments", fields: [buyerId], references: [id], onDelete: Restrict)
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  buyer   User     @relation("BuyerPayments", fields: [buyerId], references: [id], onDelete: Restrict)
+  refunds Refund[]
 
   @@index([invoiceId, status])
   @@index([buyerId, status])
   @@index([status, createdAt])
+}
+
+model Refund {
+  id               String       @id @default(uuid()) @db.Uuid
+  paymentId        String       @db.Uuid
+  invoiceId        String       @db.Uuid
+  requestedById    String       @db.Uuid
+  reviewedById     String?      @db.Uuid
+  status           RefundStatus @default(REQUESTED)
+  currency         String       @db.VarChar(3)
+  amount           Decimal      @db.Decimal(14, 2)
+  reason           String
+  adminNote        String?
+  idempotencyKey   String       @unique
+  providerRefundId String?      @unique
+  providerStatus   String?
+  failureReason    String?
+  requestedAt      DateTime     @default(now()) @db.Timestamptz(3)
+  reviewedAt       DateTime?    @db.Timestamptz(3)
+  completedAt      DateTime?    @db.Timestamptz(3)
+  createdAt        DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @db.Timestamptz(3)
+
+  payment     Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  requestedBy User    @relation("RefundRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  reviewedBy  User?   @relation("RefundReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([paymentId, status])
+  @@index([invoiceId, status])
+  @@index([requestedById, status])
+  @@index([status, requestedAt])
 }
 
 model WebhookEvent {
