@@ -6,6 +6,7 @@ import { globalErrorHandler } from "./app/middlewares/errorHandler.js";
 import { notFound } from "./app/middlewares/notFound.js";
 import { globalRateLimiter } from "./app/middlewares/rateLimiter.js";
 import { apiRouter } from "./app/routes/index.js";
+import { PaymentWebhookController } from "./app/modules/payment/payment.webhook.controller.js";
 
 export const app = express();
 
@@ -29,8 +30,11 @@ app.use(
 );
 app.use(globalRateLimiter);
 
-// IMPORTANT: The Stripe webhook route will be mounted HERE in the payment commit,
-// before express.json(). Stripe signature verification requires the raw body.
+app.post(
+  `${env.API_PREFIX}/payments/webhooks/stripe`,
+  express.raw({ type: "application/json", limit: "1mb" }),
+  PaymentWebhookController.handleStripeWebhook,
+);
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));

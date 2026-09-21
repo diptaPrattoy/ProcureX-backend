@@ -45,19 +45,33 @@ const envSchema = z
       .transform((value) => value === "true"),
     SMTP_USER: optionalTrimmedString,
     SMTP_PASS: optionalTrimmedString,
+    STRIPE_SECRET_KEY: optionalTrimmedString,
+    STRIPE_WEBHOOK_SECRET: optionalTrimmedString,
+    STRIPE_SUCCESS_URL: z.url().default("http://localhost:3000/payments/success?session_id={CHECKOUT_SESSION_ID}"),
+    STRIPE_CANCEL_URL: z.url().default("http://localhost:3000/payments/cancel"),
   })
   .superRefine((value, ctx) => {
-    if (value.EMAIL_DELIVERY_MODE !== "smtp") {
-      return;
+    if (value.EMAIL_DELIVERY_MODE === "smtp") {
+      for (const key of ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"] as const) {
+        if (!value[key]) {
+          ctx.addIssue({
+            code: "custom",
+            path: [key],
+            message: `${key} is required when EMAIL_DELIVERY_MODE=smtp`,
+          });
+        }
+      }
     }
 
-    for (const key of ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"] as const) {
-      if (!value[key]) {
-        ctx.addIssue({
-          code: "custom",
-          path: [key],
-          message: `${key} is required when EMAIL_DELIVERY_MODE=smtp`,
-        });
+    if (value.NODE_ENV === "production") {
+      for (const key of ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const) {
+        if (!value[key]) {
+          ctx.addIssue({
+            code: "custom",
+            path: [key],
+            message: `${key} is required in production`,
+          });
+        }
       }
     }
   });

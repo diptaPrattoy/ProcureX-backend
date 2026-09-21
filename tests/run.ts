@@ -6,3 +6,5 @@ import "./goods-receipt.domain.test.js";
 import "./invoice.domain.test.js";
 
 import "./invoice-review.domain.test.js";
+
+import "./payment.domain.test.js";
