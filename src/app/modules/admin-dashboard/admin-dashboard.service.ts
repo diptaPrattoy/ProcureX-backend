@@ -1,4 +1,7 @@
 import { prisma } from "../../../lib/prisma.js";
+import { env } from "../../config/env.js";
+import { CacheService } from "../cache/cache.service.js";
+import { buildCacheKey } from "../cache/cache.domain.js";
 import {
   buildDailyTrendBuckets,
   buildFinancialCurrencySummary,
@@ -11,7 +14,7 @@ import type {
   DashboardTrendQuery,
 } from "./admin-dashboard.validation.js";
 
-const getOverview = async (query: DashboardRangeQuery) => {
+const getOverviewFromDatabase = async (query: DashboardRangeQuery) => {
   const now = new Date();
   const { from, to } = resolveDashboardRange(query, now);
 
@@ -130,7 +133,7 @@ const getOverview = async (query: DashboardRangeQuery) => {
   };
 };
 
-const getFinancials = async (query: DashboardRangeQuery) => {
+const getFinancialsFromDatabase = async (query: DashboardRangeQuery) => {
   const { from, to } = resolveDashboardRange(query);
 
   const [grossRows, refundRows, outstandingRows] = await Promise.all([
@@ -184,7 +187,7 @@ const getFinancials = async (query: DashboardRangeQuery) => {
   };
 };
 
-const getTrends = async (query: DashboardTrendQuery) => {
+const getTrendsFromDatabase = async (query: DashboardTrendQuery) => {
   const now = new Date();
   const end = new Date(startOfUtcDay(now).getTime() + 24 * 60 * 60 * 1000 - 1);
   const start = new Date(startOfUtcDay(now).getTime() - (query.days - 1) * 24 * 60 * 60 * 1000);
@@ -244,6 +247,27 @@ const getTrends = async (query: DashboardTrendQuery) => {
     }),
   };
 };
+
+const getOverview = async (query: DashboardRangeQuery) =>
+  CacheService.remember(
+    buildCacheKey("admin-dashboard:overview", query),
+    env.CACHE_ANALYTICS_TTL_SECONDS,
+    () => getOverviewFromDatabase(query),
+  );
+
+const getFinancials = async (query: DashboardRangeQuery) =>
+  CacheService.remember(
+    buildCacheKey("admin-dashboard:financials", query),
+    env.CACHE_ANALYTICS_TTL_SECONDS,
+    () => getFinancialsFromDatabase(query),
+  );
+
+const getTrends = async (query: DashboardTrendQuery) =>
+  CacheService.remember(
+    buildCacheKey("admin-dashboard:trends", query),
+    env.CACHE_ANALYTICS_TTL_SECONDS,
+    () => getTrendsFromDatabase(query),
+  );
 
 export const AdminDashboardService = {
   getOverview,

@@ -49,6 +49,15 @@ const envSchema = z
     STRIPE_WEBHOOK_SECRET: optionalTrimmedString,
     STRIPE_SUCCESS_URL: z.url().default("http://localhost:3000/payments/success?session_id={CHECKOUT_SESSION_ID}"),
     STRIPE_CANCEL_URL: z.url().default("http://localhost:3000/payments/cancel"),
+    CACHE_ENABLED: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((value) => value === "true"),
+    UPSTASH_REDIS_REST_URL: optionalTrimmedString,
+    UPSTASH_REDIS_REST_TOKEN: optionalTrimmedString,
+    CACHE_CATEGORY_TTL_SECONDS: z.coerce.number().int().positive().max(86400).default(600),
+    CACHE_SUPPLIER_TTL_SECONDS: z.coerce.number().int().positive().max(3600).default(120),
+    CACHE_ANALYTICS_TTL_SECONDS: z.coerce.number().int().positive().max(600).default(30),
   })
   .superRefine((value, ctx) => {
     if (value.EMAIL_DELIVERY_MODE === "smtp") {
@@ -61,6 +70,16 @@ const envSchema = z
           });
         }
       }
+    }
+
+    const hasRedisUrl = Boolean(value.UPSTASH_REDIS_REST_URL);
+    const hasRedisToken = Boolean(value.UPSTASH_REDIS_REST_TOKEN);
+    if (hasRedisUrl !== hasRedisToken) {
+      ctx.addIssue({
+        code: "custom",
+        path: [hasRedisUrl ? "UPSTASH_REDIS_REST_TOKEN" : "UPSTASH_REDIS_REST_URL"],
+        message: "Both UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be provided together",
+      });
     }
 
     if (value.NODE_ENV === "production") {

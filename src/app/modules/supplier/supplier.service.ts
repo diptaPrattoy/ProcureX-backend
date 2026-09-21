@@ -1,5 +1,7 @@
 import type { Prisma } from "../../../generated/prisma/client";
 import { prisma } from "../../../lib/prisma.js";
+import { env } from "../../config/env.js";
+import { CacheService } from "../cache/cache.service.js";
 import { AppError } from "../../errors/AppError.js";
 import { AuditService, type AuditContext } from "../audit/audit.service.js";
 import type {
@@ -116,7 +118,7 @@ const updateMyProfile = async (
     country,
   } = input;
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const current = await tx.supplierProfile.findUnique({ where: { userId } });
     if (!current || current.deletedAt) {
       throw new AppError(404, "Supplier profile not found");
@@ -176,6 +178,9 @@ const updateMyProfile = async (
 
     return unwrapCategories(updated);
   });
+
+  await CacheService.bumpNamespace("supplier-directory");
+  return result;
 };
 
 const setMyCategories = async (
@@ -183,7 +188,7 @@ const setMyCategories = async (
   input: SetSupplierCategoriesInput,
   context: AuditContext,
 ) => {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplierProfile.findUnique({ where: { userId } });
     if (!supplier || supplier.deletedAt) {
       throw new AppError(404, "Supplier profile not found");
@@ -225,9 +230,12 @@ const setMyCategories = async (
 
     return categories.sort((a, b) => a.name.localeCompare(b.name));
   });
+
+  await CacheService.bumpNamespace("supplier-directory");
+  return result;
 };
 
-const listVerified = async (query: SupplierListQuery) => {
+const listVerifiedFromDatabase = async (query: SupplierListQuery) => {
   const where: Prisma.SupplierProfileWhereInput = {
     verificationStatus: "VERIFIED",
     deletedAt: null,
@@ -283,7 +291,15 @@ const listVerified = async (query: SupplierListQuery) => {
   };
 };
 
-const getVerifiedById = async (supplierId: string) => {
+const listVerified = async (query: SupplierListQuery) =>
+  CacheService.rememberVersioned(
+    "supplier-directory",
+    { type: "list", ...query },
+    env.CACHE_SUPPLIER_TTL_SECONDS,
+    () => listVerifiedFromDatabase(query),
+  );
+
+const getVerifiedByIdFromDatabase = async (supplierId: string) => {
   const supplier = await prisma.supplierProfile.findFirst({
     where: {
       id: supplierId,
@@ -300,6 +316,14 @@ const getVerifiedById = async (supplierId: string) => {
 
   return unwrapCategories(supplier);
 };
+
+const getVerifiedById = async (supplierId: string) =>
+  CacheService.rememberVersioned(
+    "supplier-directory",
+    { type: "detail", supplierId },
+    env.CACHE_SUPPLIER_TTL_SECONDS,
+    () => getVerifiedByIdFromDatabase(supplierId),
+  );
 
 const listForAdmin = async (query: AdminSupplierListQuery) => {
   const where: Prisma.SupplierProfileWhereInput = {
@@ -345,7 +369,7 @@ const updateVerification = async (
   input: SupplierVerificationInput,
   context: AuditContext,
 ) => {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplierProfile.findUnique({
       where: { id: supplierId },
       include: {
@@ -403,6 +427,9 @@ const updateVerification = async (
 
     return unwrapCategories(updated);
   });
+
+  await CacheService.bumpNamespace("supplier-directory");
+  return result;
 };
 
 export const SupplierService = {

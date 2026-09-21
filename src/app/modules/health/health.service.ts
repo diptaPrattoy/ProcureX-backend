@@ -1,5 +1,6 @@
 import { env } from "../../config/env.js";
 import { prisma } from "../../../lib/prisma.js";
+import { CacheService } from "../cache/cache.service.js";
 
 export const HealthService = {
   async getStatus() {
@@ -10,6 +11,7 @@ export const HealthService = {
       status: "ok",
       environment: env.NODE_ENV,
       database: "connected",
+      cache: CacheService.status(),
       uptimeSeconds: Math.floor(process.uptime()),
       timestamp: new Date().toISOString(),
     };

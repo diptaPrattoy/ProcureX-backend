@@ -1,8 +1,11 @@
 import type { Prisma } from "../../../generated/prisma/client";
 import { prisma } from "../../../lib/prisma.js";
+import { env } from "../../config/env.js";
+import { CacheService } from "../cache/cache.service.js";
+import { buildCacheKey } from "../cache/cache.domain.js";
 import type { CategoryListQuery } from "./category.validation.js";
 
-const list = async (query: CategoryListQuery) => {
+const listFromDatabase = async (query: CategoryListQuery) => {
   const where: Prisma.CategoryWhereInput = {
     isActive: true,
     deletedAt: null,
@@ -43,5 +46,12 @@ const list = async (query: CategoryListQuery) => {
     },
   };
 };
+
+const list = async (query: CategoryListQuery) =>
+  CacheService.remember(
+    buildCacheKey("categories:list", query),
+    env.CACHE_CATEGORY_TTL_SECONDS,
+    () => listFromDatabase(query),
+  );
 
 export const CategoryService = { list };
