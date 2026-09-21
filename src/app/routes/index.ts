@@ -1,3 +1,4 @@
+import { AdminDashboardRoutes } from "../modules/admin-dashboard/admin-dashboard.route.js";
 import { Router } from "express";
 import { ActivityRoutes, AdminAuditRoutes } from "../modules/activity/activity.route.js";
 import { AuthRoutes } from "../modules/auth/auth.route.js";
@@ -38,6 +39,7 @@ router.use("/payments", PaymentRoutes);
 router.use("/refunds", RefundRoutes);
 router.use("/disputes", DisputeRoutes);
 router.use("/admin/disputes", AdminDisputeRoutes);
+router.use("/admin/dashboard", AdminDashboardRoutes);
 router.use("/admin/audit-logs", AdminAuditRoutes);
 router.use("/admin/refunds", AdminRefundRoutes);
 router.use("/buyers", BuyerRoutes);

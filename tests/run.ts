@@ -14,3 +14,5 @@ import "./refund.domain.test.js";
 import "./dispute.domain.test.js";
 
 import "./notification.domain.test.js";
+
+import "./admin-dashboard.domain.test.js";
