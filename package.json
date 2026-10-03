@@ -1,6 +1,6 @@
 {
   "name": "procurax-backend",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "ProcuraX - B2B procurement, RFQ, purchase order, invoicing and payment backend",
   "type": "module",
@@ -23,7 +23,7 @@
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "test": "tsx tests/run.ts",
-    "verify": "npm run typecheck && npm run test && npm run build",
+    "verify": "npm run prisma:validate && npm run typecheck && npm run test && npm run build",
     "postinstall": "prisma generate"
   },
   "dependencies": {

@@ -9,9 +9,3 @@ coverage/
 .vscode/
 .idea/
 src/generated/prisma/
-
-# Keep internal development documentation local until the final submission commit.
-docs/
-
-# Local API testing artifacts; publish only the final polished collection.
-postman/
