@@ -1,142 +1,562 @@
-# ProcuraX — B2B Procurement & Vendor Management Backend
+# ProcuraX
 
-ProcuraX is a production-oriented REST API for business procurement workflows. It connects buyers, verified suppliers, and platform administrators through a complete procure-to-pay lifecycle: RFQ creation, competitive quotations, transactional award, purchase orders, goods receiving, invoicing, Stripe payments, refunds, disputes, notifications, audit history, analytics, caching, and rate limiting.
+**ProcuraX** is a backend-first B2B procurement and vendor management platform designed to manage the complete procurement lifecycle — from supplier onboarding and RFQ creation to quotation evaluation, purchase orders, goods receiving, invoicing, payments, refunds, and dispute resolution.
 
-This repository contains the **backend only**. It is designed for API-first evaluation with Postman and for a separate frontend to be added later.
+The platform is built with a modular TypeScript architecture using Express.js, Prisma ORM, PostgreSQL, Redis, and Stripe. It focuses on transactional integrity, role-based access control, auditability, secure payment processing, and scalable API design.
 
-## Submission Snapshot
+---
 
-| Item | Value |
-|---|---|
-| Project Name | ProcuraX — B2B Procurement & Vendor Management Platform |
-| Backend Repository | `<YOUR_BACKEND_REPOSITORY_URL>` |
-| Live API | `<YOUR_VERCEL_API_URL>` |
-| Postman Documentation | `<YOUR_PUBLISHED_POSTMAN_DOCS_URL>` |
-| Demo Video | `<YOUR_5_TO_10_MINUTE_VIDEO_URL>` |
-| Demo Admin Email | `admin@procurax.local` |
-| Demo Admin Password | `AdminPass123!` |
+## Overview
 
-> The admin credentials above are **evaluation/demo credentials only**. Seed them only in the assignment/demo environment and rotate or disable them afterward.
+ProcuraX provides a structured procurement workflow for organizations and suppliers.
 
-## Why ProcuraX
+The platform supports three primary roles:
 
-ProcuraX is not a generic CRUD project. Its main challenge is preserving business and financial consistency across a multi-step procurement lifecycle where three different roles act on the same commercial transaction at different stages.
+- **Buyer** — Creates RFQs, evaluates supplier quotations, issues purchase orders, records received goods, reviews invoices, and manages payments.
+- **Supplier** — Maintains a supplier profile, responds to procurement opportunities, fulfills purchase orders, and submits invoices.
+- **Admin** — Verifies suppliers, monitors platform activity, manages disputes and refunds, and accesses platform-wide analytics and audit logs.
 
-A typical flow is:
+---
+
+## Core Procurement Workflow
 
 ```text
-BUYER creates RFQ
-      ↓
-SUPPLIERS submit quotations
-      ↓
-BUYER starts evaluation
-      ↓
-One quotation is awarded atomically
-      ↓
-Purchase Order is issued
-      ↓
-SUPPLIER accepts and fulfills
-      ↓
-BUYER records accepted/rejected goods
-      ↓
-SUPPLIER invoices accepted quantities
-      ↓
-BUYER reviews and approves invoice
-      ↓
-Stripe Checkout payment
-      ↓
-Webhook reconciliation
-      ↓
-Refund / dispute workflows when necessary
+Supplier Registration
+        ↓
+Supplier Verification
+        ↓
+Buyer Creates RFQ
+        ↓
+RFQ Published
+        ↓
+Suppliers Submit Quotations
+        ↓
+Buyer Evaluates Quotations
+        ↓
+Quotation Awarded
+        ↓
+Purchase Order Issued
+        ↓
+Supplier Accepts PO
+        ↓
+Goods Delivered
+        ↓
+Buyer Records Goods Receipt
+        ↓
+Supplier Submits Invoice
+        ↓
+Buyer Reviews & Approves Invoice
+        ↓
+Stripe Payment
+        ↓
+Payment Reconciliation
 ```
 
-## Primary Roles
+The platform also supports refund and dispute workflows for completed financial transactions.
 
-ProcuraX has exactly three primary application roles:
+---
 
-| Role | Main Responsibilities |
-|---|---|
-| `BUYER` | Create and publish RFQs, evaluate quotations, own purchase orders, record goods receipts, review invoices, pay invoices, request refunds, open disputes |
-| `SUPPLIER` | Maintain supplier profile/categories, submit quotations, accept/fulfill purchase orders, submit invoices, open disputes |
-| `ADMIN` | Verify suppliers, review refunds/disputes, inspect audit history, monitor platform analytics |
+## Features
 
-Role authorization is enforced through Bearer JWT middleware on protected routes.
+### Authentication & Account Security
 
-## Core Features
+- Email and password authentication
+- Google authentication
+- JWT Bearer access tokens
+- Rotating refresh tokens
+- Refresh-token revocation
+- Secure password hashing
+- Email verification
+- Forgot/reset password workflow
+- Account suspension support
+- Role-based authorization
+- Authentication-specific rate limiting
 
-- Email/password registration and login
-- Google Identity Services sign-in
-- Short-lived JWT access tokens
-- Hashed, rotating refresh tokens with revocation
-- Email verification and password reset
-- Supplier onboarding and administrator verification
-- Public verified-supplier directory
-- RFQ draft/publish/cancel/soft-delete workflow
-- Search, filters, sorting, and pagination
-- Supplier quotation submission with server-calculated totals
-- Transactional quotation award and automatic PO creation
-- Purchase-order acceptance and fulfillment workflow
-- Partial goods receiving with accepted/rejected quantities
-- Receipt-backed supplier invoicing
-- Buyer invoice review/approval/rejection
-- Stripe Checkout payment integration
-- Signed Stripe webhook processing and event idempotency
-- Partial/full Stripe refunds and reconciliation
-- Purchase-order and invoice dispute resolution
-- Notification center and unread tracking
-- User activity history and administrator audit logs
-- Admin operational/financial/trend analytics
-- Redis caching for read-heavy endpoints
-- Distributed Redis-backed rate limiting for production/serverless deployment
-- PostgreSQL indexes, constraints, soft deletes, and Prisma transactions
-- Domain-level automated tests
-- Vercel/serverless production configuration
+---
+
+### Supplier Management
+
+- Supplier profile management
+- Procurement category specialization
+- Business registration and tax information
+- Admin-controlled supplier verification
+- Verification lifecycle tracking
+- Public verified supplier directory
+- Supplier search, filtering, sorting, and pagination
+
+Only verified suppliers are eligible to participate in procurement opportunities.
+
+---
+
+### RFQ Management
+
+Buyers can create and manage Requests for Quotation containing multiple procurement items.
+
+Supported capabilities include:
+
+- Draft RFQs
+- Multi-item procurement requests
+- Category assignment
+- Budget ranges
+- Submission deadlines
+- Delivery dates
+- Shipping information
+- Draft editing
+- RFQ publishing
+- RFQ cancellation
+- Soft deletion
+- Search and filtering
+- Pagination and sorting
+
+Published RFQs become immutable to protect the integrity of supplier quotations.
+
+---
+
+### Supplier Quotations
+
+Verified suppliers can submit quotations against eligible RFQs.
+
+Quotation validation includes:
+
+- Supplier verification
+- Procurement-category matching
+- RFQ deadline validation
+- One quotation per supplier per RFQ
+- RFQ item matching
+- Server-calculated line totals
+- Server-calculated subtotal and total
+- Currency consistency
+- Ownership checks
+- Controlled quotation lifecycle
+
+Quotation values are calculated on the server instead of trusting financial totals from the client.
+
+---
+
+## Quotation Evaluation & Award
+
+Buyers can move an RFQ into evaluation and compare supplier quotations.
+
+Awarding a quotation is performed through an atomic Prisma transaction.
+
+```text
+Winning Quotation → AWARDED
+
+Other Quotations → REJECTED
+
+RFQ → AWARDED
+
+Purchase Order → CREATED
+
+Audit Events → CREATED
+```
+
+If any step fails, the entire transaction rolls back.
+
+This prevents partially completed procurement awards.
+
+---
+
+## Purchase Orders
+
+Awarding a quotation automatically generates a purchase order containing immutable snapshots of the awarded procurement data.
+
+Purchase order lifecycle:
+
+```text
+ISSUED
+   ↓
+ACCEPTED
+   ↓
+IN_PROGRESS
+   ↓
+PARTIALLY_DELIVERED
+   ↓
+DELIVERED
+```
+
+Alternative states include:
+
+```text
+ISSUED → REJECTED
+ISSUED → CANCELLED
+```
+
+The purchase order preserves quantities, negotiated prices, item details, supplier details, and commercial totals from the winning quotation.
+
+---
+
+## Goods Receiving
+
+Goods receipts are controlled by the buyer rather than the supplier.
+
+ProcuraX supports:
+
+- Multiple delivery batches
+- Partial deliveries
+- Accepted quantities
+- Rejected quantities
+- Remaining quantity calculations
+- Over-receipt prevention
+- Transaction-safe receiving
+- Automatic purchase-order status updates
+
+Rejected quantities do not consume the purchased quantity, allowing suppliers to replace rejected units in future deliveries.
+
+---
+
+## Invoicing
+
+Suppliers can create invoices based on quantities already accepted through goods receipts.
+
+This creates a receipt-backed invoicing model:
+
+```text
+Purchase Order
+      ↓
+Goods Receipt
+      ↓
+Accepted Quantity
+      ↓
+Supplier Invoice
+```
+
+Supported capabilities include:
+
+- Multiple invoices per purchase order
+- Partial invoicing
+- Invoice number uniqueness
+- Server-calculated financial totals
+- Invoice due dates
+- Over-invoicing prevention
+- Invoice cancellation
+- Buyer invoice review
+- Approval and rejection workflows
+
+Invoice lifecycle:
+
+```text
+SUBMITTED
+    ↓
+UNDER_REVIEW
+   /          \
+APPROVED     REJECTED
+```
+
+Only approved invoices are eligible for payment.
+
+---
+
+## Stripe Payments
+
+ProcuraX integrates Stripe Checkout for invoice payments.
+
+Payment flow:
+
+```text
+APPROVED Invoice
+       ↓
+Payment Initiation
+       ↓
+Stripe Checkout
+       ↓
+Stripe Webhook
+       ↓
+Payment Reconciliation
+       ↓
+Invoice PAID
+```
+
+Payment security includes:
+
+- Server-controlled payment amounts
+- Stripe Checkout sessions
+- PaymentIntent tracking
+- Idempotency keys
+- Checkout session reuse
+- Secure webhook signature verification
+- Raw webhook body preservation
+- Webhook event deduplication
+- Database-backed payment state
+- Failed payment recovery
+
+Stripe webhooks are processed independently of application-level rate limiting to avoid blocking legitimate provider events.
+
+---
+
+## Refunds
+
+ProcuraX supports both full and partial Stripe refunds.
+
+Refund workflow:
+
+```text
+Buyer Requests Refund
+        ↓
+REQUESTED
+        ↓
+Admin Review
+   /           \
+REJECTED     APPROVED
+                 ↓
+            Stripe Refund
+                 ↓
+        SUCCEEDED / FAILED
+```
+
+The platform prevents the cumulative refund amount from exceeding the original payment.
+
+Refund state is reconciled with Stripe through webhook events.
+
+---
+
+## Dispute Management
+
+Buyers and suppliers can open disputes related to purchase orders or invoices in which they are participants.
+
+Dispute lifecycle:
+
+```text
+OPEN
+  ↓
+UNDER_REVIEW
+  ↓
+RESOLVED
+```
+
+or:
+
+```text
+UNDER_REVIEW → REJECTED
+```
+
+Administrators manage dispute review and resolution while maintaining a complete audit trail.
+
+---
+
+## Notifications
+
+ProcuraX contains a database-backed notification system used throughout procurement workflows.
+
+Notifications may be generated for events such as:
+
+- RFQ activity
+- Quotation awards
+- Purchase-order changes
+- Goods receipts
+- Invoice submissions
+- Invoice approvals or rejections
+- Payments
+- Refunds
+- Disputes
+
+Users can:
+
+- View notifications
+- Filter read/unread notifications
+- View unread counts
+- Mark individual notifications as read
+- Mark all notifications as read
+
+---
+
+## Audit Logging
+
+Critical platform operations generate audit records.
+
+Examples include:
+
+```text
+RFQ_CREATED
+RFQ_PUBLISHED
+QUOTATION_SUBMITTED
+QUOTATION_AWARDED
+PURCHASE_ORDER_ACCEPTED
+GOODS_RECEIPT_CREATED
+INVOICE_SUBMITTED
+INVOICE_APPROVED
+PAYMENT_COMPLETED
+REFUND_REQUESTED
+DISPUTE_OPENED
+```
+
+Audit records can contain:
+
+- Actor
+- Action
+- Entity type
+- Entity ID
+- Metadata
+- IP address
+- Timestamp
+
+Users can access their own activity history, while administrators can inspect platform-wide audit records.
+
+---
+
+## Analytics
+
+The admin dashboard exposes procurement and operational analytics.
+
+Available metrics include:
+
+- User counts
+- Role distribution
+- Supplier verification statistics
+- RFQ activity
+- Quotation activity
+- Purchase orders
+- Invoice statistics
+- Payment statistics
+- Refund requests
+- Disputes
+- Outstanding workflows
+- Recent activity
+- Daily operational trends
+
+Financial metrics are grouped by currency to avoid combining unrelated currencies into misleading totals.
+
+Example:
+
+```text
+USD
+grossCollected
+refunded
+netCashFlow
+outstandingApproved
+
+BDT
+grossCollected
+refunded
+netCashFlow
+outstandingApproved
+```
+
+---
+
+## Caching & Performance
+
+ProcuraX uses Upstash Redis for serverless-friendly caching.
+
+Cached resources include:
+
+- Procurement categories
+- Public supplier directory
+- Admin analytics
+
+The caching layer is fail-open:
+
+```text
+Redis Available
+      ↓
+Serve Cached Data
+
+Redis Unavailable
+      ↓
+Query PostgreSQL
+      ↓
+API Remains Available
+```
+
+Supplier-directory cache invalidation uses versioned namespaces instead of expensive Redis wildcard scans.
+
+---
+
+## Rate Limiting
+
+Rate limiting can use Upstash Redis for distributed state.
+
+This makes rate limits consistent across multiple Vercel serverless instances.
+
+Separate limits are used for:
+
+- General API traffic
+- Authentication endpoints
+
+---
+
+## Security
+
+ProcuraX includes multiple application-level security controls:
+
+- Helmet security headers
+- Configurable CORS
+- JWT authentication
+- Refresh-token rotation
+- Password hashing
+- Zod request validation
+- Role-based authorization
+- Resource ownership checks
+- Rate limiting
+- Stripe webhook verification
+- Payment idempotency
+- Soft deletion
+- Audit logging
+- Environment validation
+- Database transactions
+- Server-calculated financial values
+
+---
 
 ## Technology Stack
 
-| Area | Technology |
-|---|---|
-| Runtime | Node.js 22 |
-| Language | TypeScript |
-| API Framework | Express 5 |
-| Database | PostgreSQL (Neon) |
-| ORM | Prisma 7 + `@prisma/adapter-pg` |
-| Validation | Zod |
-| Authentication | Custom JWT + Google Identity Services |
-| Password Hashing | bcryptjs |
-| Payments | Stripe Checkout + Webhooks + Refunds |
-| Cache / Distributed Rate Limit | Upstash Redis |
-| Security | Helmet, CORS, rate limiting, strict env validation |
-| Email | Nodemailer / SMTP, console mailer in development |
-| Build | tsup |
-| Tests | Node/TypeScript domain tests via tsx |
-| Code Quality | Biome configuration |
-| Deployment Target | Vercel Node server / serverless environment |
-| API Documentation | Postman |
+### Runtime & API
+
+- Node.js 22
+- Express.js
+- TypeScript
+- REST API
+
+### Database
+
+- PostgreSQL
+- Neon
+- Prisma ORM
+
+### Authentication
+
+- JWT
+- Google Identity Services
+- bcrypt
+
+### Payments
+
+- Stripe Checkout
+- Stripe Webhooks
+- Stripe Refunds
+
+### Validation
+
+- Zod
+
+### Cache & Rate Limiting
+
+- Upstash Redis
+- Upstash Rate Limit
+
+### Security
+
+- Helmet
+- CORS
+
+### Tooling
+
+- Prisma CLI
+- tsup
+- TypeScript
+- Postman
+
+### Deployment
+
+- Vercel
+- Neon PostgreSQL
+- Upstash Redis
+
+---
 
 ## Architecture
 
-ProcuraX uses a modular service architecture:
-
-```text
-HTTP Request
-    ↓
-Route
-    ↓
-Authentication / Role Middleware
-    ↓
-Zod Validation
-    ↓
-Controller
-    ↓
-Service / Business Rules
-    ↓
-Prisma
-    ↓
-PostgreSQL (Neon)
-```
-
-Cross-cutting services include Stripe, Upstash Redis, email delivery, audit logging, notifications, centralized errors, and shared response utilities.
+ProcuraX follows a modular backend structure.
 
 ```text
 src/
@@ -145,234 +565,234 @@ src/
 │   ├── errors/
 │   ├── middlewares/
 │   ├── modules/
+│   │   ├── admin/
+│   │   ├── analytics/
+│   │   ├── audit/
 │   │   ├── auth/
-│   │   ├── supplier/
-│   │   ├── rfq/
-│   │   ├── quotation/
-│   │   ├── purchase-order/
+│   │   ├── buyer/
+│   │   ├── category/
+│   │   ├── dispute/
 │   │   ├── goods-receipt/
 │   │   ├── invoice/
-│   │   ├── payment/
-│   │   ├── refund/
-│   │   ├── dispute/
 │   │   ├── notification/
-│   │   ├── activity/
-│   │   └── admin-dashboard/
+│   │   ├── payment/
+│   │   ├── purchase-order/
+│   │   ├── quotation/
+│   │   ├── refund/
+│   │   ├── rfq/
+│   │   └── supplier/
 │   ├── routes/
 │   └── utils/
+├── generated/
 ├── lib/
 ├── app.ts
 └── server.ts
+
+prisma/
+├── migrations/
+├── schema.prisma
+└── seed.ts
 ```
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the detailed design.
+Individual domain modules follow a layered structure such as:
 
-## Important Business Rules
+```text
+module/
+├── module.controller.ts
+├── module.route.ts
+├── module.service.ts
+└── module.validation.ts
+```
 
-ProcuraX intentionally enforces business transitions instead of exposing arbitrary status-update endpoints.
+---
 
-- Only verified suppliers mapped to the RFQ category may quote.
-- Published RFQs cannot be silently edited after suppliers begin responding.
-- Quotation quantities come from the RFQ; suppliers provide commercial prices only.
-- Awarding a quotation is a single transaction: winner awarded, competitors rejected, RFQ awarded, PO snapshot created, audit records written.
-- Suppliers cannot mark their own goods as received.
-- Rejected received quantities do not consume ordered quantity and can be replaced later.
-- Suppliers can invoice only buyer-accepted quantities.
-- Payment amount/currency are always derived from the approved invoice on the server.
-- Stripe webhook events are idempotent using provider event IDs.
-- Partial refunds reserve refundable balance and cannot exceed the original successful payment.
-- Critical state transitions produce audit records and relevant notifications.
+## API Versioning
 
-## API
-
-Base prefix:
+All application APIs are exposed under:
 
 ```text
 /api/v1
 ```
 
-The codebase exposes **80+ REST routes** across authentication, profiles, suppliers, RFQs, quotations, purchase orders, receiving, invoices, payments, refunds, disputes, notifications, audit logs, and analytics.
-
-Example endpoints:
+Examples:
 
 ```http
-POST   /api/v1/auth/register/buyer
-POST   /api/v1/auth/register/supplier
-POST   /api/v1/auth/login
-POST   /api/v1/auth/google
-POST   /api/v1/auth/refresh
-GET    /api/v1/auth/me
+POST /api/v1/auth/login
 
-GET    /api/v1/suppliers
-PATCH  /api/v1/admin/suppliers/:supplierId/verification
+GET /api/v1/rfqs/open
 
-POST   /api/v1/rfqs
-POST   /api/v1/rfqs/:rfqId/publish
-GET    /api/v1/rfqs/open
+POST /api/v1/rfqs/:rfqId/quotations
 
-POST   /api/v1/rfqs/:rfqId/quotations
-POST   /api/v1/rfqs/:rfqId/evaluation/start
-POST   /api/v1/rfqs/:rfqId/quotations/:quotationId/award
+GET /api/v1/purchase-orders
 
-POST   /api/v1/purchase-orders/:purchaseOrderId/accept
-POST   /api/v1/purchase-orders/:purchaseOrderId/goods-receipts
-POST   /api/v1/purchase-orders/:purchaseOrderId/invoices
+POST /api/v1/invoices/:invoiceId/pay
 
-POST   /api/v1/invoices/:invoiceId/approve
-POST   /api/v1/invoices/:invoiceId/payments/checkout
-POST   /api/v1/payments/webhooks/stripe
+GET /api/v1/notifications
 
-POST   /api/v1/payments/:paymentId/refunds
-POST   /api/v1/admin/refunds/:refundId/approve
-
-GET    /api/v1/admin/audit-logs
-GET    /api/v1/admin/dashboard/overview
-GET    /api/v1/admin/dashboard/financials
-GET    /api/v1/admin/dashboard/trends
+GET /api/v1/admin/dashboard/overview
 ```
 
-For the complete role-by-role reference, see [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) and the Postman collection at [`postman/ProcuraX.postman_collection.json`](postman/ProcuraX.postman_collection.json).
+---
 
-## Response Contract
+## API Documentation
 
-Success responses follow:
-
-```json
-{
-  "success": true,
-  "message": "Operation successful",
-  "data": {}
-}
-```
-
-Error responses follow:
-
-```json
-{
-  "success": false,
-  "message": "Something went wrong",
-  "errors": []
-}
-```
-
-Validation, authentication, authorization, not-found, unique-constraint, and business-rule errors are routed through centralized middleware.
-
-## Database Design
-
-The Prisma schema contains the procurement and platform entities required for the complete workflow, including:
+A complete Postman collection is available at:
 
 ```text
-User
-BuyerProfile
-SupplierProfile
-SupplierCategory
-Category
-RefreshToken
-AuthToken
-Rfq / RfqItem
-Quotation / QuotationItem
-PurchaseOrder / PurchaseOrderItem
-GoodsReceipt / GoodsReceiptItem
-Invoice / InvoiceItem
-Payment
-Refund
-WebhookEvent
-Dispute
-AuditLog
-Notification
+postman/ProcuraX.postman_collection.json
 ```
 
-The schema includes unique constraints and indexes for identity, workflow state, ownership, search/filter paths, idempotency keys, webhook IDs, and audit/history access.
+The collection covers authentication and the complete procurement workflow for Buyer, Supplier, and Admin roles.
 
-Money uses PostgreSQL decimal columns instead of authoritative JavaScript floating-point arithmetic.
+Additional technical documentation is available in the [`docs`](./docs) directory.
 
-See [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md).
+---
 
-## Transactions and Concurrency
+## Getting Started
 
-Transactions are used only where atomic consistency is required, including:
+### Prerequisites
 
-- quotation evaluation/award and PO issuance;
-- goods receiving and remaining-quantity checks;
-- invoice quantity reservation;
-- invoice review state changes;
-- payment/webhook reconciliation;
-- refund balance reservation/reconciliation;
-- business state transition + audit/notification writes.
+Install:
 
-Read-only pagination queries use parallel reads rather than unnecessary transactions, which keeps Neon/serverless behavior efficient.
-
-## Security
-
-- Passwords hashed with bcrypt
-- Bearer JWT authentication
-- Rotating hashed refresh tokens
-- One-time verification/reset token hashes
-- Strict 3-role authorization middleware
-- Helmet security headers
-- Explicit CORS allow-list
-- Zod request validation
-- Global and auth-specific rate limiting
-- Distributed rate limiting with Upstash in production
-- Stripe signature verification against the raw request body
-- Stripe event and payment/refund idempotency
-- Environment validation at startup
-- Production-only HTTPS checks
-- Soft deletion for selected user-facing records
-- Audit logging for critical operations
-
-## Redis / Performance
-
-Upstash Redis is used for:
-
-- procurement-category caching;
-- verified-supplier directory caching;
-- short-lived admin analytics caching;
-- distributed production rate limiting.
-
-Caching is fail-open: if Redis is unavailable, read endpoints fall back to PostgreSQL instead of taking the API offline.
-
-## Local Setup
-
-### 1. Requirements
-
-- Node.js 22
+- Node.js 22+
 - npm
-- Neon PostgreSQL database
-- Google OAuth Web Client ID
-- Stripe test account
-- Upstash Redis database (recommended; optional in local development)
-- SMTP credentials for real email delivery (console mode can be used locally)
+- PostgreSQL-compatible database or Neon account
+- Stripe account
+- Google OAuth credentials
 
-### 2. Install
+Redis and SMTP services are optional during local development.
+
+---
+
+### Clone the Repository
+
+```bash
+git clone <repository-url>
+cd procurax-backend
+```
+
+---
+
+### Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Environment
+---
 
-Copy:
+### Environment Configuration
+
+Create:
+
+```text
+.env
+```
+
+using:
+
+```text
+.env.example
+```
+
+as the reference.
+
+Important configuration groups include:
+
+```env
+DATABASE_URL=
+DIRECT_URL=
+
+JWT_ACCESS_SECRET=
+
+GOOGLE_CLIENT_ID=
+
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+```
+
+Never commit production secrets or `.env` files to source control.
+
+---
+
+## Database Setup
+
+Generate the Prisma client:
 
 ```bash
-cp .env.example .env
+npm run prisma:generate
 ```
 
-On Windows PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Fill the values in `.env`. Never commit `.env`.
-
-### 4. Database
-
-Apply committed migrations:
+Apply migrations:
 
 ```bash
 npm run db:deploy
 ```
+
+Seed reference data:
+
+```bash
+npm run db:seed
+```
+
+---
+
+## Development
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+The API runs locally at:
+
+```text
+http://localhost:5000
+```
+
+Health endpoint:
+
+```http
+GET /api/v1/health
+```
+
+---
+
+## Validation & Build
+
+Run the complete verification pipeline:
+
+```bash
+npm run verify
+```
+
+The verification process validates the Prisma schema and performs:
+
+```text
+Prisma validation
+      ↓
+TypeScript type checking
+      ↓
+Automated tests
+      ↓
+Production build
+```
+
+Individual commands are also available:
+
+```bash
+npm run typecheck
+npm run test
+npm run build
+```
+
+---
+
+## Database Management
 
 Generate Prisma Client:
 
@@ -380,146 +800,92 @@ Generate Prisma Client:
 npm run prisma:generate
 ```
 
-Seed reference categories and the demo admin:
+Open Prisma Studio:
+
+```bash
+npm run db:studio
+```
+
+Run migrations during development:
+
+```bash
+npm run db:migrate
+```
+
+Deploy committed migrations:
+
+```bash
+npm run db:deploy
+```
+
+Seed the database:
 
 ```bash
 npm run db:seed
 ```
 
-### 5. Run locally
+---
+
+## Stripe Webhooks
+
+For local Stripe webhook testing, Stripe CLI can forward webhook events to the backend:
 
 ```bash
-npm run dev
+stripe listen --forward-to localhost:5000/api/v1/payments/webhooks/stripe
 ```
 
-Health check:
+Use the generated webhook signing secret as:
+
+```env
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+For production, configure the deployed HTTPS webhook endpoint in Stripe.
+
+---
+
+## Production Deployment
+
+ProcuraX is designed to run in serverless environments such as Vercel.
+
+The production architecture can use:
 
 ```text
-GET http://localhost:5000/api/v1/health
+Vercel
+  │
+  ├── Express API
+  │
+  ├── Stripe Webhooks
+  │
+  └── Prisma
+          │
+          ▼
+   Neon PostgreSQL
+
+Vercel
+  │
+  ▼
+Upstash Redis
 ```
 
-### 6. Verify before pushing/deploying
+Application state is stored in PostgreSQL, Redis, and Stripe rather than process memory, allowing requests to execute safely across separate serverless instances.
 
-```bash
-npm run verify
-```
+Production secrets should be configured through the deployment platform's environment-variable management system.
 
-This runs TypeScript checking, domain tests, Prisma generation, and the production build.
-
-## Environment Variables
-
-The complete template is provided in `.env.example`. Important production values include:
-
-```text
-DATABASE_URL
-DIRECT_URL
-JWT_ACCESS_SECRET
-GOOGLE_CLIENT_ID
-EMAIL_DELIVERY_MODE=smtp
-SMTP_HOST / SMTP_USER / SMTP_PASS
-STRIPE_SECRET_KEY
-STRIPE_WEBHOOK_SECRET
-UPSTASH_REDIS_REST_URL
-UPSTASH_REDIS_REST_TOKEN
-CORS_ORIGINS
-CLIENT_APP_URL
-STRIPE_SUCCESS_URL
-STRIPE_CANCEL_URL
-```
-
-Use the Neon **pooled** connection for `DATABASE_URL` and the non-pooler/direct URL for `DIRECT_URL`.
-
-## Postman
-
-Import:
-
-```text
-postman/ProcuraX.postman_collection.json
-```
-
-The collection uses a canonical data flow and contains organized requests for all three roles. Collection variables store access tokens and generated entity IDs as the workflow progresses.
-
-Before submission, publish the collection from Postman and place the published documentation URL in the Submission Snapshot above.
-
-See [`docs/POSTMAN.md`](docs/POSTMAN.md).
-
-## Testing
-
-Automated domain tests cover the highest-risk business rules, including:
-
-- quotation calculations and eligibility;
-- transactional award behavior;
-- purchase-order transitions;
-- goods-receipt quantities;
-- invoice quantities and review states;
-- payments and webhook behavior;
-- refunds;
-- disputes;
-- notifications;
-- analytics calculations;
-- caching;
-- rate-limiting behavior.
-
-Run:
-
-```bash
-npm run test
-```
-
-or the full verification pipeline:
-
-```bash
-npm run verify
-```
-
-## Deployment
-
-ProcuraX is prepared for a Vercel Node deployment and Neon/Upstash serverless infrastructure.
-
-Production deployment requires:
-
-1. Vercel project connected to this backend repository.
-2. All production environment variables configured.
-3. Database migrations deployed against Neon.
-4. Demo/reference data seeded if required for evaluation.
-5. Stripe webhook endpoint registered as:
-
-```text
-https://YOUR_API_DOMAIN/api/v1/payments/webhooks/stripe
-```
-
-6. Stripe webhook signing secret added to Vercel.
-7. Production CORS and redirect URLs changed to the deployed frontend domain.
-
-See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the complete sequence.
+---
 
 ## Documentation
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system architecture and module boundaries
-- [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) — grouped endpoint reference
-- [`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md) — authentication/session model
-- [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — database model and invariants
-- [`docs/BUSINESS_WORKFLOWS.md`](docs/BUSINESS_WORKFLOWS.md) — procurement state machines
-- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — Neon/Vercel/Stripe/Upstash deployment
-- [`docs/POSTMAN.md`](docs/POSTMAN.md) — collection workflow and publishing
-- [`docs/ASSIGNMENT_COMPLIANCE.md`](docs/ASSIGNMENT_COMPLIANCE.md) — requirement-to-implementation mapping
-- [`docs/VIDEO_WALKTHROUGH.md`](docs/VIDEO_WALKTHROUGH.md) — 5–10 minute demo plan
-- [`docs/SUBMISSION_CHECKLIST.md`](docs/SUBMISSION_CHECKLIST.md) — final hand-in checklist
-
-## Final Submission Format
-
-After deployment and video recording, submit using:
+Additional documentation is available under:
 
 ```text
-Project Name    : ProcuraX — B2B Procurement & Vendor Management Platform
-Backend Repo    : <YOUR_BACKEND_REPOSITORY_URL>
-Live API        : <YOUR_VERCEL_API_URL>
-API Docs        : <YOUR_PUBLISHED_POSTMAN_DOCS_URL>
-Demo Video      : <YOUR_5_TO_10_MINUTE_VIDEO_URL>
-Admin Email     : admin@procurax.local
-Admin Password  : AdminPass123!
+docs/
 ```
 
-## License / Academic Use
+covering architecture, authentication, data modeling, RFQs, quotation workflows, purchase orders, supplier management, evaluation logic, deployment, and API usage.
 
-Built as an academic backend assignment and portfolio project. Do not expose real customer, payment, SMTP, Google, Stripe, Neon, or Redis secrets in the repository.
+---
+
+## License
+
+Dipta Prattoy Karmakar
