@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "c5f3f7b2-6ef7-4f0c-ae39-3e21b6a0a606",
-    "name": "ProcuraX \u2014 Complete Backend API",
-    "description": "Submission-ready ProcuraX Postman collection covering the canonical BUYER, SUPPLIER, and ADMIN workflows: authentication, supplier verification, RFQs, quotations, evaluation/award, purchase orders, goods receipts, invoices, Stripe payments, refunds, disputes, notifications, audit logs, and analytics. Start with the folders in numeric order. The collection stores tokens and entity IDs in collection variables as requests succeed. Use Stripe webhook delivery/Stripe CLI for signed webhook events rather than manually forging webhook requests.",
+    "name": "ProcuraX — Complete Backend API",
+    "description": "Complete ProcuraX API collection covering authentication, profiles, supplier verification, RFQs, quotations, evaluation and award, purchase orders, goods receipts, invoices, Stripe payments, refunds, disputes, notifications, audit logs, and analytics. The collection keeps one canonical BUYER, SUPPLIER, and ADMIN workflow while also documenting every implemented REST route. Requests marked Optional/Reference may alter state or require provider-generated credentials/events.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -196,6 +196,38 @@
     },
     {
       "key": "auditLogId",
+      "value": ""
+    },
+    {
+      "key": "googleCredential",
+      "value": ""
+    },
+    {
+      "key": "googleAccessToken",
+      "value": ""
+    },
+    {
+      "key": "googleRefreshToken",
+      "value": ""
+    },
+    {
+      "key": "googleRole",
+      "value": "BUYER"
+    },
+    {
+      "key": "googleCompanyName",
+      "value": "Google Procurement Buyer"
+    },
+    {
+      "key": "passwordResetToken",
+      "value": ""
+    },
+    {
+      "key": "buyerNewPassword",
+      "value": "StrongPass456!"
+    },
+    {
+      "key": "stripeWebhookSignature",
       "value": ""
     }
   ],
@@ -547,12 +579,265 @@
               }
             }
           }
+        },
+        {
+          "name": "Google Sign-In / Sign-Up (Google ID Token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/google",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"credential\": \"{{googleCredential}}\",\n  \"role\": \"{{googleRole}}\",\n  \"companyName\": \"{{googleCompanyName}}\",\n  \"city\": \"Dhaka\",\n  \"country\": \"Bangladesh\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Paste a current Google Identity Services ID token into googleCredential. For a first-time Google user, role and companyName are required. ADMIN cannot be created through this endpoint."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data?.tokens?.accessToken) pm.collectionVariables.set(\"googleAccessToken\", json.data.tokens.accessToken);",
+                  "  if (json.data?.tokens?.refreshToken) pm.collectionVariables.set(\"googleRefreshToken\", json.data.tokens.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buyer - Refresh Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/refresh",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{buyerRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Rotates the canonical buyer refresh token. The old refresh token becomes unusable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data?.tokens?.accessToken) pm.collectionVariables.set(\"buyerAccessToken\", json.data.tokens.accessToken);",
+                  "  if (json.data?.tokens?.refreshToken) pm.collectionVariables.set(\"buyerRefreshToken\", json.data.tokens.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buyer - Logout (Optional)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{buyerRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Optional/destructive for the current session: revokes the canonical buyer refresh token. Login again afterward if continuing the collection."
+          }
+        },
+        {
+          "name": "Buyer - Forgot Password (Optional)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/forgot-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{buyerEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Requests password-reset instructions. With console email delivery, copy the emitted token into passwordResetToken."
+          }
+        },
+        {
+          "name": "Buyer - Reset Password (Optional)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/reset-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{passwordResetToken}}\",\n  \"newPassword\": \"{{buyerNewPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Optional/destructive: changes the canonical buyer password and revokes active refresh sessions."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set(\"buyerPassword\", pm.collectionVariables.get(\"buyerNewPassword\"));",
+                  "}"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "02 - Supplier Onboarding",
+      "name": "02 - Profiles & Supplier Onboarding",
       "item": [
+        {
+          "name": "Buyer - Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/buyers/me/profile",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Buyer - Update My Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/buyers/me/profile",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"{{buyerCompanyName}}\",\n  \"businessRegistrationNo\": \"BRN-NORTHSTAR-2026-001\",\n  \"taxId\": \"TIN-NORTHSTAR-10001\",\n  \"city\": \"Dhaka\",\n  \"country\": \"Bangladesh\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Supplier - Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/suppliers/me/profile",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{supplierAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin - List Suppliers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/admin/suppliers?page=1&limit=20",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Public - Get Verified Supplier Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/suppliers/{{supplierProfileId}}",
+            "description": "Public detail route. The supplier must already be VERIFIED."
+          }
+        },
         {
           "name": "Complete Canonical Supplier Profile",
           "request": {
@@ -1804,6 +2089,33 @@
               ]
             }
           }
+        },
+        {
+          "name": "Stripe Webhook (Provider-Signed Reference)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "stripe-signature",
+                "value": "{{stripeWebhookSignature}}"
+              }
+            ],
+            "url": "{{baseUrl}}/payments/webhooks/stripe",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_replace_with_real_stripe_event\",\n  \"type\": \"checkout.session.completed\",\n  \"data\": { \"object\": {} }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Reference for the implemented webhook route. Do not fabricate signatures for real testing; use Stripe CLI or Stripe Dashboard webhook delivery so the raw payload and stripe-signature header are valid."
+          }
         }
       ]
     },
@@ -1995,6 +2307,95 @@
               ]
             }
           }
+        },
+        {
+          "name": "Buyer Get Refund Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/refunds/{{refundId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Buyer Cancel Requested Refund (Optional)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/refunds/{{refundId}}/cancel",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Valid only while the refund is still REQUESTED."
+          }
+        },
+        {
+          "name": "Admin Reject Refund (Alternative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/refunds/{{refundId}}/reject",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Refund request does not meet the documented refund conditions.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Alternative to approval. Requires a refund in REQUESTED state."
+          }
+        },
+        {
+          "name": "Admin Retry Failed Refund",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/admin/refunds/{{refundId}}/retry",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Retries a refund whose provider submission failed and is eligible for retry."
+          }
         }
       ]
     },
@@ -2184,6 +2585,108 @@
                 }
               }
             }
+          }
+        },
+        {
+          "name": "Participant Get Dispute Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/disputes/{{disputeId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Buyer Open Purchase Order Dispute (Alternative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/purchase-orders/{{purchaseOrderId}}/disputes",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"Purchase order fulfillment dispute\",\n  \"description\": \"The purchase order fulfillment requires administrator review because the received delivery differs from the agreed procurement terms.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Alternative dispute target demonstrating the purchase-order dispute route. Only one active dispute per target is allowed."
+          }
+        },
+        {
+          "name": "Admin Get Dispute Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/admin/disputes/{{disputeId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Reject Dispute (Alternative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/disputes/{{disputeId}}/reject",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resolution\": \"The available transaction evidence does not support the dispute claim.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Alternative to resolve. Requires an UNDER_REVIEW dispute."
           }
         }
       ]
