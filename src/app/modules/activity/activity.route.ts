@@ -6,8 +6,18 @@ const activityRouter = Router();
 activityRouter.get("/me", requireAuth, ActivityController.listMine);
 
 const adminAuditRouter = Router();
-adminAuditRouter.get("/", requireAuth, requireRoles("ADMIN"), ActivityController.listAdmin);
-adminAuditRouter.get("/:auditLogId", requireAuth, requireRoles("ADMIN"), ActivityController.getAdminById);
+adminAuditRouter.get(
+  "/",
+  requireAuth,
+  requireRoles("ADMIN"),
+  ActivityController.listAdmin,
+);
+adminAuditRouter.get(
+  "/:auditLogId",
+  requireAuth,
+  requireRoles("ADMIN"),
+  ActivityController.getAdminById,
+);
 
 export const ActivityRoutes = activityRouter;
 export const AdminAuditRoutes = adminAuditRouter;

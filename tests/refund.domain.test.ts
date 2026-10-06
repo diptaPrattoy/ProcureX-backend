@@ -4,13 +4,20 @@ import {
   assertPaymentCanBeRefunded,
   assertRefundCanBeCancelled,
   assertRefundCanBeReviewed,
+  canApplyProviderRefundStatus,
   fromStripeMinorUnits,
   mapStripeRefundStatus,
 } from "../src/app/modules/refund/refund.domain.js";
 
 test("only successful payments can enter the refund workflow", () => {
   assert.doesNotThrow(() => assertPaymentCanBeRefunded("SUCCEEDED"));
-  for (const status of ["PENDING", "PROCESSING", "FAILED", "CANCELLED", "REFUNDED"]) {
+  for (const status of [
+    "PENDING",
+    "PROCESSING",
+    "FAILED",
+    "CANCELLED",
+    "REFUNDED",
+  ]) {
     assert.throws(() => assertPaymentCanBeRefunded(status));
   }
 });
@@ -18,7 +25,14 @@ test("only successful payments can enter the refund workflow", () => {
 test("only requested refunds can be cancelled or reviewed", () => {
   assert.doesNotThrow(() => assertRefundCanBeCancelled("REQUESTED"));
   assert.doesNotThrow(() => assertRefundCanBeReviewed("REQUESTED"));
-  for (const status of ["APPROVED", "PROCESSING", "SUCCEEDED", "REJECTED", "FAILED", "CANCELLED"] as const) {
+  for (const status of [
+    "APPROVED",
+    "PROCESSING",
+    "SUCCEEDED",
+    "REJECTED",
+    "FAILED",
+    "CANCELLED",
+  ] as const) {
     assert.throws(() => assertRefundCanBeCancelled(status));
     assert.throws(() => assertRefundCanBeReviewed(status));
   }
@@ -35,5 +49,21 @@ test("Stripe refund states map to ProcuraX states", () => {
 test("minor units convert back to persisted refund amounts", () => {
   assert.equal(fromStripeMinorUnits(125050, "USD"), "1250.50");
   assert.equal(fromStripeMinorUnits(1250, "JPY"), "1250");
+  assert.equal(fromStripeMinorUnits(500, "UGX"), "5.00");
   assert.throws(() => fromStripeMinorUnits(0, "USD"));
+});
+
+test("provider refund updates cannot regress a terminal state", () => {
+  assert.equal(canApplyProviderRefundStatus("REQUESTED", "PROCESSING"), true);
+  assert.equal(canApplyProviderRefundStatus("PROCESSING", "SUCCEEDED"), true);
+  assert.equal(canApplyProviderRefundStatus("PROCESSING", "PROCESSING"), false);
+
+  for (const terminal of [
+    "SUCCEEDED",
+    "REJECTED",
+    "FAILED",
+    "CANCELLED",
+  ] as const) {
+    assert.equal(canApplyProviderRefundStatus(terminal, "PROCESSING"), false);
+  }
 });

@@ -1,5 +1,7 @@
 import { AppError } from "../../errors/AppError.js";
 
+export { fromStripeMinorUnits } from "../payment/payment.domain.js";
+
 export type RefundLifecycleStatus =
   | "REQUESTED"
   | "APPROVED"
@@ -37,7 +39,9 @@ export const assertRefundCanBeReviewed = (status: RefundLifecycleStatus) => {
   }
 };
 
-export const mapStripeRefundStatus = (status: string): RefundLifecycleStatus => {
+export const mapStripeRefundStatus = (
+  status: string,
+): RefundLifecycleStatus => {
   switch (status) {
     case "succeeded":
       return "SUCCEEDED";
@@ -53,15 +57,14 @@ export const mapStripeRefundStatus = (status: string): RefundLifecycleStatus => 
   }
 };
 
-export const fromStripeMinorUnits = (amount: number, currency: string): string => {
-  if (!Number.isSafeInteger(amount) || amount <= 0) {
-    throw new AppError(500, "Invalid refund amount from payment provider");
-  }
+const TERMINAL_REFUND_STATUSES = new Set<RefundLifecycleStatus>([
+  "SUCCEEDED",
+  "REJECTED",
+  "FAILED",
+  "CANCELLED",
+]);
 
-  const zeroDecimalCurrencies = new Set([
-    "BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF",
-    "UGX", "VND", "VUV", "XAF", "XOF", "XPF",
-  ]);
-  const normalized = currency.trim().toUpperCase();
-  return zeroDecimalCurrencies.has(normalized) ? String(amount) : (amount / 100).toFixed(2);
-};
+export const canApplyProviderRefundStatus = (
+  current: RefundLifecycleStatus,
+  next: RefundLifecycleStatus,
+) => current !== next && !TERMINAL_REFUND_STATUSES.has(current);

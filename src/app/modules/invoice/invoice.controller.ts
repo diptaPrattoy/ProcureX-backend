@@ -17,7 +17,9 @@ const getAuditContext = (req: Request) => ({
   userAgent: req.get("user-agent") ?? undefined,
 });
 
-const requirePrincipal = (req: Request): { id: string; role: Extract<UserRole, "BUYER" | "SUPPLIER"> } => {
+const requirePrincipal = (
+  req: Request,
+): { id: string; role: Extract<UserRole, "BUYER" | "SUPPLIER"> } => {
   if (!req.authUser) {
     throw new AppError(401, "Authentication required");
   }
@@ -26,7 +28,6 @@ const requirePrincipal = (req: Request): { id: string; role: Extract<UserRole, "
   }
   return { id: req.authUser.id, role: req.authUser.role };
 };
-
 
 const requireBuyer = (req: Request) => {
   if (!req.authUser) {
@@ -51,14 +52,26 @@ const create = catchAsync(async (req: Request, res: Response) => {
     input,
     getAuditContext(req),
   );
-  sendResponse(res, { statusCode: 201, message: "Invoice submitted successfully", data });
+  sendResponse(res, {
+    statusCode: 201,
+    message: "Invoice submitted successfully",
+    data,
+  });
 });
 
 const listMine = catchAsync(async (req: Request, res: Response) => {
   const principal = requirePrincipal(req);
   const query = invoiceListQuerySchema.parse(req.query);
-  const data = await InvoiceService.listMine(principal.id, principal.role, query);
-  sendResponse(res, { statusCode: 200, message: "Invoices retrieved successfully", data });
+  const data = await InvoiceService.listMine(
+    principal.id,
+    principal.role,
+    query,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Invoices retrieved successfully",
+    data,
+  });
 });
 
 const listByPurchaseOrder = catchAsync(async (req: Request, res: Response) => {
@@ -71,29 +84,56 @@ const listByPurchaseOrder = catchAsync(async (req: Request, res: Response) => {
     purchaseOrderId,
     query,
   );
-  sendResponse(res, { statusCode: 200, message: "Purchase order invoices retrieved successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Purchase order invoices retrieved successfully",
+    data,
+  });
 });
 
 const getById = catchAsync(async (req: Request, res: Response) => {
   const principal = requirePrincipal(req);
   const { invoiceId } = invoiceIdParamSchema.parse(req.params);
-  const data = await InvoiceService.getById(principal.id, principal.role, invoiceId);
-  sendResponse(res, { statusCode: 200, message: "Invoice retrieved successfully", data });
+  const data = await InvoiceService.getById(
+    principal.id,
+    principal.role,
+    invoiceId,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Invoice retrieved successfully",
+    data,
+  });
 });
-
 
 const startReview = catchAsync(async (req: Request, res: Response) => {
   const buyerId = requireBuyer(req);
   const { invoiceId } = invoiceIdParamSchema.parse(req.params);
-  const data = await InvoiceService.startReview(buyerId, invoiceId, getAuditContext(req));
-  sendResponse(res, { statusCode: 200, message: "Invoice review started successfully", data });
+  const data = await InvoiceService.startReview(
+    buyerId,
+    invoiceId,
+    getAuditContext(req),
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Invoice review started successfully",
+    data,
+  });
 });
 
 const approve = catchAsync(async (req: Request, res: Response) => {
   const buyerId = requireBuyer(req);
   const { invoiceId } = invoiceIdParamSchema.parse(req.params);
-  const data = await InvoiceService.approve(buyerId, invoiceId, getAuditContext(req));
-  sendResponse(res, { statusCode: 200, message: "Invoice approved successfully", data });
+  const data = await InvoiceService.approve(
+    buyerId,
+    invoiceId,
+    getAuditContext(req),
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Invoice approved successfully",
+    data,
+  });
 });
 
 const reject = catchAsync(async (req: Request, res: Response) => {
@@ -106,7 +146,11 @@ const reject = catchAsync(async (req: Request, res: Response) => {
     input.reason,
     getAuditContext(req),
   );
-  sendResponse(res, { statusCode: 200, message: "Invoice rejected successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Invoice rejected successfully",
+    data,
+  });
 });
 
 const cancel = catchAsync(async (req: Request, res: Response) => {
@@ -115,8 +159,16 @@ const cancel = catchAsync(async (req: Request, res: Response) => {
     throw new AppError(403, "Only the supplier can cancel an invoice");
   }
   const { invoiceId } = invoiceIdParamSchema.parse(req.params);
-  const data = await InvoiceService.cancel(principal.id, invoiceId, getAuditContext(req));
-  sendResponse(res, { statusCode: 200, message: "Invoice cancelled successfully", data });
+  const data = await InvoiceService.cancel(
+    principal.id,
+    invoiceId,
+    getAuditContext(req),
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Invoice cancelled successfully",
+    data,
+  });
 });
 
 export const InvoiceController = {

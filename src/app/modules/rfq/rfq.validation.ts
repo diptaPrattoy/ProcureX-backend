@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isStripeSupportedCurrency } from "../payment/payment.domain.js";
 
 const nullableOptionalText = (max: number) =>
   z.string().trim().min(1).max(max).nullable().optional();
@@ -8,10 +9,18 @@ const currencySchema = z
   .trim()
   .length(3)
   .transform((value) => value.toUpperCase())
-  .refine((value) => /^[A-Z]{3}$/.test(value), "Currency must be a 3-letter ISO-style code");
+  .refine(isStripeSupportedCurrency, "Currency is not supported for payments");
 
-const moneySchema = z.coerce.number().finite().nonnegative().max(999_999_999_999.99);
-const quantitySchema = z.coerce.number().finite().positive().max(999_999_999.999);
+const moneySchema = z.coerce
+  .number()
+  .finite()
+  .nonnegative()
+  .max(999_999_999_999.99);
+const quantitySchema = z.coerce
+  .number()
+  .finite()
+  .positive()
+  .max(999_999_999.999);
 
 const rfqItemSchema = z.object({
   itemName: z.string().trim().min(2).max(180),
@@ -97,14 +106,24 @@ const baseRfqListQuery = {
   country: z.string().trim().min(1).max(100).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(50).default(20),
-  sortBy: z.enum(["createdAt", "submissionDeadline", "budgetMax"]).default("createdAt"),
+  sortBy: z
+    .enum(["createdAt", "submissionDeadline", "budgetMax"])
+    .default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 };
 
 export const myRfqListQuerySchema = z.object({
   ...baseRfqListQuery,
   status: z
-    .enum(["DRAFT", "OPEN", "EVALUATING", "AWARDED", "CLOSED", "CANCELLED", "EXPIRED"])
+    .enum([
+      "DRAFT",
+      "OPEN",
+      "EVALUATING",
+      "AWARDED",
+      "CLOSED",
+      "CANCELLED",
+      "EXPIRED",
+    ])
     .optional(),
 });
 

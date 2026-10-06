@@ -2,7 +2,11 @@ import { Router } from "express";
 import { requireAuth, requireRoles } from "../../middlewares/auth.js";
 import { validateBody } from "../../middlewares/validateRequest.js";
 import { DisputeController } from "./dispute.controller.js";
-import { openDisputeSchema, rejectDisputeSchema, resolveDisputeSchema } from "./dispute.validation.js";
+import {
+  openDisputeSchema,
+  rejectDisputeSchema,
+  resolveDisputeSchema,
+} from "./dispute.validation.js";
 
 const purchaseOrderDisputeRouter = Router();
 purchaseOrderDisputeRouter.post(
@@ -23,12 +27,32 @@ invoiceDisputeRouter.post(
 );
 
 const disputeRouter = Router();
-disputeRouter.get("/", requireAuth, requireRoles("BUYER", "SUPPLIER"), DisputeController.listMine);
-disputeRouter.get("/:disputeId", requireAuth, requireRoles("BUYER", "SUPPLIER"), DisputeController.getMineById);
+disputeRouter.get(
+  "/",
+  requireAuth,
+  requireRoles("BUYER", "SUPPLIER"),
+  DisputeController.listMine,
+);
+disputeRouter.get(
+  "/:disputeId",
+  requireAuth,
+  requireRoles("BUYER", "SUPPLIER"),
+  DisputeController.getMineById,
+);
 
 const adminDisputeRouter = Router();
-adminDisputeRouter.get("/", requireAuth, requireRoles("ADMIN"), DisputeController.listAdmin);
-adminDisputeRouter.get("/:disputeId", requireAuth, requireRoles("ADMIN"), DisputeController.getAdminById);
+adminDisputeRouter.get(
+  "/",
+  requireAuth,
+  requireRoles("ADMIN"),
+  DisputeController.listAdmin,
+);
+adminDisputeRouter.get(
+  "/:disputeId",
+  requireAuth,
+  requireRoles("ADMIN"),
+  DisputeController.getAdminById,
+);
 adminDisputeRouter.post(
   "/:disputeId/review",
   requireAuth,

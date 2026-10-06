@@ -7,7 +7,13 @@ export const reconcilePaymentRefundStatus = async (
 ) => {
   const payment = await tx.payment.findUnique({
     where: { id: paymentId },
-    select: { id: true, amount: true, currency: true, status: true, refundedAt: true },
+    select: {
+      id: true,
+      amount: true,
+      currency: true,
+      status: true,
+      refundedAt: true,
+    },
   });
   if (!payment) {
     return { fullyRefunded: false, refundedMinor: 0, paymentMinor: 0 };
@@ -18,7 +24,10 @@ export const reconcilePaymentRefundStatus = async (
     _sum: { amount: true },
   });
 
-  const paymentMinor = toStripeMinorUnits(payment.amount.toString(), payment.currency);
+  const paymentMinor = toStripeMinorUnits(
+    payment.amount.toString(),
+    payment.currency,
+  );
   const refundedMinor = successful._sum.amount
     ? toStripeMinorUnits(successful._sum.amount.toString(), payment.currency)
     : 0;

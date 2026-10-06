@@ -2,7 +2,10 @@ import type Stripe from "stripe";
 import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../../lib/prisma.js";
 import { AuditService } from "../audit/audit.service.js";
-import { mapStripeRefundStatus } from "../refund/refund.domain.js";
+import {
+  canApplyProviderRefundStatus,
+  mapStripeRefundStatus,
+} from "../refund/refund.domain.js";
 import { reconcilePaymentRefundStatus } from "../refund/refund.reconciliation.js";
 
 type WebhookTransaction = Prisma.TransactionClient;
@@ -17,13 +20,18 @@ const paymentIntentIdFromSession = (session: Stripe.Checkout.Session) => {
   return session.payment_intent?.id ?? null;
 };
 
-const paymentIdFromMetadata = (metadata: Record<string, string> | null | undefined) =>
-  metadata?.paymentId?.trim() || null;
+const paymentIdFromMetadata = (
+  metadata: Record<string, string> | null | undefined,
+) => metadata?.paymentId?.trim() || null;
 
-const refundRequestIdFromMetadata = (metadata: Record<string, string> | null | undefined) =>
-  metadata?.refundRequestId?.trim() || null;
+const refundRequestIdFromMetadata = (
+  metadata: Record<string, string> | null | undefined,
+) => metadata?.refundRequestId?.trim() || null;
 
-const applyRefundUpdate = async (tx: WebhookTransaction, providerRefund: Stripe.Refund) => {
+const applyRefundUpdate = async (
+  tx: WebhookTransaction,
+  providerRefund: Stripe.Refund,
+) => {
   const refundRequestId = refundRequestIdFromMetadata(providerRefund.metadata);
   const localRefund = refundRequestId
     ? await tx.refund.findUnique({
@@ -51,19 +59,33 @@ const applyRefundUpdate = async (tx: WebhookTransaction, providerRefund: Stripe.
         },
       });
 
-  if (!localRefund || localRefund.status === "REJECTED" || localRefund.status === "CANCELLED") {
+  if (
+    !localRefund ||
+    localRefund.status === "REJECTED" ||
+    localRefund.status === "CANCELLED"
+  ) {
     return;
   }
-  if (localRefund.providerRefundId && localRefund.providerRefundId !== providerRefund.id) {
+  if (
+    localRefund.providerRefundId &&
+    localRefund.providerRefundId !== providerRefund.id
+  ) {
     return;
   }
 
   const nextStatus = mapStripeRefundStatus(providerRefund.status ?? "pending");
   const previousStatus = localRefund.status;
+  if (!canApplyProviderRefundStatus(previousStatus, nextStatus)) {
+    return;
+  }
   const terminal = ["SUCCEEDED", "FAILED", "CANCELLED"].includes(nextStatus);
 
-  await tx.refund.update({
-    where: { id: localRefund.id },
+  const claimed = await tx.refund.updateMany({
+    where: {
+      id: localRefund.id,
+      status: previousStatus,
+      OR: [{ providerRefundId: null }, { providerRefundId: providerRefund.id }],
+    },
     data: {
       status: nextStatus,
       providerRefundId: providerRefund.id,
@@ -72,11 +94,14 @@ const applyRefundUpdate = async (tx: WebhookTransaction, providerRefund: Stripe.
       completedAt: terminal ? new Date() : null,
     },
   });
-
-  const reconciliation = await reconcilePaymentRefundStatus(tx, localRefund.paymentId);
-  if (previousStatus === nextStatus) {
+  if (claimed.count !== 1) {
     return;
   }
+
+  const reconciliation = await reconcilePaymentRefundStatus(
+    tx,
+    localRefund.paymentId,
+  );
 
   const action =
     nextStatus === "SUCCEEDED"
@@ -106,14 +131,22 @@ const applyRefundUpdate = async (tx: WebhookTransaction, providerRefund: Stripe.
           type: "REFUND_SUCCEEDED",
           title: "Refund completed",
           message: `Your refund for ${localRefund.invoice.invoiceNumber} has completed successfully.`,
-          metadata: { refundId: localRefund.id, paymentId: localRefund.paymentId, invoiceId: localRefund.invoiceId },
+          metadata: {
+            refundId: localRefund.id,
+            paymentId: localRefund.paymentId,
+            invoiceId: localRefund.invoiceId,
+          },
         },
         {
           userId: localRefund.invoice.supplierId,
           type: "REFUND_SUCCEEDED",
           title: "Payment refunded",
           message: `A refund for ${localRefund.invoice.invoiceNumber} has completed.`,
-          metadata: { refundId: localRefund.id, paymentId: localRefund.paymentId, invoiceId: localRefund.invoiceId },
+          metadata: {
+            refundId: localRefund.id,
+            paymentId: localRefund.paymentId,
+            invoiceId: localRefund.invoiceId,
+          },
         },
       ],
     });
@@ -124,7 +157,11 @@ const applyRefundUpdate = async (tx: WebhookTransaction, providerRefund: Stripe.
         type: "REFUND_FAILED",
         title: "Refund could not be completed",
         message: `The refund for ${localRefund.invoice.invoiceNumber} could not be completed.`,
-        metadata: { refundId: localRefund.id, paymentId: localRefund.paymentId, invoiceId: localRefund.invoiceId },
+        metadata: {
+          refundId: localRefund.id,
+          paymentId: localRefund.paymentId,
+          invoiceId: localRefund.invoiceId,
+        },
       },
     });
   }
@@ -155,7 +192,11 @@ const markSucceeded = async (
     },
   });
 
-  if (!payment || payment.status === "SUCCEEDED" || payment.status === "REFUNDED") {
+  if (
+    !payment ||
+    payment.status === "SUCCEEDED" ||
+    payment.status === "REFUNDED"
+  ) {
     return;
   }
 
@@ -166,7 +207,8 @@ const markSucceeded = async (
       status: "SUCCEEDED",
       failureReason: null,
       completedAt: now,
-      providerPaymentIntentId: providerPaymentIntentId ?? payment.providerPaymentIntentId,
+      providerPaymentIntentId:
+        providerPaymentIntentId ?? payment.providerPaymentIntentId,
       providerCheckoutSessionId:
         providerCheckoutSessionId ?? payment.providerCheckoutSessionId,
     },
@@ -184,7 +226,8 @@ const markSucceeded = async (
     metadata: {
       invoiceId: payment.invoiceId,
       invoiceNumber: payment.invoice.invoiceNumber,
-      providerPaymentIntentId: providerPaymentIntentId ?? payment.providerPaymentIntentId,
+      providerPaymentIntentId:
+        providerPaymentIntentId ?? payment.providerPaymentIntentId,
     },
   });
 
@@ -217,7 +260,11 @@ const markFailed = async (
     },
   });
 
-  if (!payment || payment.status === "SUCCEEDED" || payment.status === "REFUNDED") {
+  if (
+    !payment ||
+    payment.status === "SUCCEEDED" ||
+    payment.status === "REFUNDED"
+  ) {
     return;
   }
   if (payment.status === "FAILED" || payment.status === "CANCELLED") {
@@ -229,11 +276,16 @@ const markFailed = async (
     data: {
       status: "FAILED",
       failureReason: reason.slice(0, 1000),
-      providerPaymentIntentId: providerPaymentIntentId ?? payment.providerPaymentIntentId,
+      providerPaymentIntentId:
+        providerPaymentIntentId ?? payment.providerPaymentIntentId,
     },
   });
   await tx.invoice.updateMany({
-    where: { id: payment.invoiceId, buyerId: payment.buyerId, status: "PAYMENT_PENDING" },
+    where: {
+      id: payment.invoiceId,
+      buyerId: payment.buyerId,
+      status: "PAYMENT_PENDING",
+    },
     data: { status: "APPROVED" },
   });
 
@@ -271,7 +323,11 @@ const markCancelled = async (tx: WebhookTransaction, paymentId: string) => {
     },
   });
 
-  if (!payment || payment.status === "SUCCEEDED" || payment.status === "REFUNDED") {
+  if (
+    !payment ||
+    payment.status === "SUCCEEDED" ||
+    payment.status === "REFUNDED"
+  ) {
     return;
   }
   if (payment.status === "CANCELLED") {
@@ -280,10 +336,17 @@ const markCancelled = async (tx: WebhookTransaction, paymentId: string) => {
 
   await tx.payment.update({
     where: { id: payment.id },
-    data: { status: "CANCELLED", failureReason: "Stripe Checkout session expired" },
+    data: {
+      status: "CANCELLED",
+      failureReason: "Stripe Checkout session expired",
+    },
   });
   await tx.invoice.updateMany({
-    where: { id: payment.invoiceId, buyerId: payment.buyerId, status: "PAYMENT_PENDING" },
+    where: {
+      id: payment.invoiceId,
+      buyerId: payment.buyerId,
+      status: "PAYMENT_PENDING",
+    },
     data: { status: "APPROVED" },
   });
 
@@ -298,7 +361,10 @@ const markCancelled = async (tx: WebhookTransaction, paymentId: string) => {
   });
 };
 
-const applyStripeEvent = async (tx: WebhookTransaction, event: Stripe.Event) => {
+const applyStripeEvent = async (
+  tx: WebhookTransaction,
+  event: Stripe.Event,
+) => {
   switch (event.type) {
     case "checkout.session.completed":
     case "checkout.session.async_payment_succeeded": {
@@ -307,7 +373,12 @@ const applyStripeEvent = async (tx: WebhookTransaction, event: Stripe.Event) => 
       if (!paymentId || session.payment_status !== "paid") {
         return;
       }
-      await markSucceeded(tx, paymentId, paymentIntentIdFromSession(session), session.id);
+      await markSucceeded(
+        tx,
+        paymentId,
+        paymentIntentIdFromSession(session),
+        session.id,
+      );
       return;
     }
     case "checkout.session.async_payment_failed": {
@@ -400,7 +471,10 @@ const processEvent = async (event: Stripe.Event) => {
       { isolationLevel: "Serializable" },
     );
   } catch (error) {
-    const code = error instanceof Error ? (error as Error & { code?: string }).code : undefined;
+    const code =
+      error instanceof Error
+        ? (error as Error & { code?: string }).code
+        : undefined;
     if (code === "P2002") {
       const existing = await prisma.webhookEvent.findUnique({
         where: { providerEventId: event.id },
@@ -411,7 +485,10 @@ const processEvent = async (event: Stripe.Event) => {
       }
     }
 
-    const message = error instanceof Error ? error.message : "Unknown webhook processing error";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unknown webhook processing error";
     await prisma.webhookEvent.upsert({
       where: { providerEventId: event.id },
       create: {

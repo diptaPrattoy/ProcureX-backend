@@ -8,7 +8,9 @@ import {
 } from "../src/app/modules/quotation/quotation.award.domain.js";
 
 test("evaluation requires an open RFQ with at least one quotation", () => {
-  assert.doesNotThrow(() => assertCanStartEvaluation({ status: "OPEN", quotationCount: 2 }));
+  assert.doesNotThrow(() =>
+    assertCanStartEvaluation({ status: "OPEN", quotationCount: 2 }),
+  );
   assert.throws(
     () => assertCanStartEvaluation({ status: "DRAFT", quotationCount: 2 }),
     (error) => error instanceof AppError && error.statusCode === 409,
@@ -113,7 +115,7 @@ test("purchase-order snapshot rejects missing or changed quote quantities", () =
     () =>
       buildPurchaseOrderItems(rfq, [
         {
-          rfqItemId: rfq[0]!.id,
+          rfqItemId: "11111111-1111-4111-8111-111111111111",
           quantity: 19,
           unitPrice: 650,
           lineTotal: 12350,

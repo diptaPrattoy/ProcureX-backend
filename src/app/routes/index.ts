@@ -1,20 +1,47 @@
-import { AdminDashboardRoutes } from "../modules/admin-dashboard/admin-dashboard.route.js";
 import { Router } from "express";
-import { ActivityRoutes, AdminAuditRoutes } from "../modules/activity/activity.route.js";
+import {
+  ActivityRoutes,
+  AdminAuditRoutes,
+} from "../modules/activity/activity.route.js";
+import { AdminDashboardRoutes } from "../modules/admin-dashboard/admin-dashboard.route.js";
 import { AuthRoutes } from "../modules/auth/auth.route.js";
 import { BuyerRoutes } from "../modules/buyer/buyer.route.js";
-import { AdminDisputeRoutes, DisputeRoutes, InvoiceDisputeRoutes, PurchaseOrderDisputeRoutes } from "../modules/dispute/dispute.route.js";
 import { CategoryRoutes } from "../modules/category/category.route.js";
+import {
+  AdminDisputeRoutes,
+  DisputeRoutes,
+  InvoiceDisputeRoutes,
+  PurchaseOrderDisputeRoutes,
+} from "../modules/dispute/dispute.route.js";
+import {
+  GoodsReceiptRoutes,
+  PurchaseOrderGoodsReceiptRoutes,
+} from "../modules/goods-receipt/goods-receipt.route.js";
 import { HealthRoutes } from "../modules/health/health.route.js";
-import { InvoiceRoutes, PurchaseOrderInvoiceRoutes } from "../modules/invoice/invoice.route.js";
+import {
+  InvoiceRoutes,
+  PurchaseOrderInvoiceRoutes,
+} from "../modules/invoice/invoice.route.js";
 import { NotificationRoutes } from "../modules/notification/notification.route.js";
-import { InvoicePaymentRoutes, PaymentRoutes } from "../modules/payment/payment.route.js";
-import { AdminRefundRoutes, PaymentRefundRoutes, RefundRoutes } from "../modules/refund/refund.route.js";
-import { GoodsReceiptRoutes, PurchaseOrderGoodsReceiptRoutes } from "../modules/goods-receipt/goods-receipt.route.js";
-import { QuotationRfqRoutes, QuotationRoutes } from "../modules/quotation/quotation.route.js";
+import {
+  InvoicePaymentRoutes,
+  PaymentRoutes,
+} from "../modules/payment/payment.route.js";
 import { PurchaseOrderRoutes } from "../modules/purchase-order/purchase-order.route.js";
+import {
+  QuotationRfqRoutes,
+  QuotationRoutes,
+} from "../modules/quotation/quotation.route.js";
+import {
+  AdminRefundRoutes,
+  PaymentRefundRoutes,
+  RefundRoutes,
+} from "../modules/refund/refund.route.js";
 import { RfqRoutes } from "../modules/rfq/rfq.route.js";
-import { AdminSupplierRoutes, SupplierRoutes } from "../modules/supplier/supplier.route.js";
+import {
+  AdminSupplierRoutes,
+  SupplierRoutes,
+} from "../modules/supplier/supplier.route.js";
 
 const router = Router();
 

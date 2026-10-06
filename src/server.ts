@@ -1,6 +1,6 @@
 import type { Server } from "node:http";
-import { app } from "./app.js";
 import { env } from "./app/config/env.js";
+import { app } from "./app.js";
 import { prisma } from "./lib/prisma.js";
 
 let server: Server | undefined;
@@ -11,7 +11,9 @@ const startServer = (): void => {
     // network handshake during a Vercel cold start; readiness is checked by
     // the health endpoint instead.
     server = app.listen(env.PORT, () => {
-      console.log(`ProcuraX API listening on port ${env.PORT}${env.API_PREFIX}`);
+      console.log(
+        `ProcuraX API listening on port ${env.PORT}${env.API_PREFIX}`,
+      );
     });
   } catch (error) {
     console.error("Failed to start ProcuraX API", error);

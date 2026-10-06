@@ -27,22 +27,38 @@ const auditContext = (req: Request) => ({
 const createCheckout = catchAsync(async (req: Request, res: Response) => {
   const buyerId = requireBuyer(req);
   const { invoiceId } = invoicePaymentParamSchema.parse(req.params);
-  const data = await PaymentService.createCheckout(buyerId, invoiceId, auditContext(req));
-  sendResponse(res, { statusCode: 201, message: "Stripe checkout session ready", data });
+  const data = await PaymentService.createCheckout(
+    buyerId,
+    invoiceId,
+    auditContext(req),
+  );
+  sendResponse(res, {
+    statusCode: 201,
+    message: "Stripe checkout session ready",
+    data,
+  });
 });
 
 const listMine = catchAsync(async (req: Request, res: Response) => {
   const buyerId = requireBuyer(req);
   const query = paymentListQuerySchema.parse(req.query);
   const data = await PaymentService.listMine(buyerId, query);
-  sendResponse(res, { statusCode: 200, message: "Payments retrieved successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Payments retrieved successfully",
+    data,
+  });
 });
 
 const getMineById = catchAsync(async (req: Request, res: Response) => {
   const buyerId = requireBuyer(req);
   const { paymentId } = paymentIdParamSchema.parse(req.params);
   const data = await PaymentService.getMineById(buyerId, paymentId);
-  sendResponse(res, { statusCode: 200, message: "Payment retrieved successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Payment retrieved successfully",
+    data,
+  });
 });
 
 export const PaymentController = { createCheckout, listMine, getMineById };

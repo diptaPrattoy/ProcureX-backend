@@ -1,7 +1,14 @@
-import type { DisputeStatus, InvoiceStatus, PurchaseOrderStatus } from "../../../generated/prisma/client.js";
+import type {
+  DisputeStatus,
+  InvoiceStatus,
+  PurchaseOrderStatus,
+} from "../../../generated/prisma/client.js";
 import { AppError } from "../../errors/AppError.js";
 
-export const ACTIVE_DISPUTE_STATUSES: DisputeStatus[] = ["OPEN", "UNDER_REVIEW"];
+export const ACTIVE_DISPUTE_STATUSES: DisputeStatus[] = [
+  "OPEN",
+  "UNDER_REVIEW",
+];
 
 const DISPUTABLE_PURCHASE_ORDER_STATUSES: PurchaseOrderStatus[] = [
   "ACCEPTED",
@@ -20,9 +27,14 @@ const DISPUTABLE_INVOICE_STATUSES: InvoiceStatus[] = [
   "PAID",
 ];
 
-export const assertPurchaseOrderCanBeDisputed = (status: PurchaseOrderStatus) => {
+export const assertPurchaseOrderCanBeDisputed = (
+  status: PurchaseOrderStatus,
+) => {
   if (!DISPUTABLE_PURCHASE_ORDER_STATUSES.includes(status)) {
-    throw new AppError(409, `Purchase order cannot be disputed while ${status}`);
+    throw new AppError(
+      409,
+      `Purchase order cannot be disputed while ${status}`,
+    );
   }
 };
 

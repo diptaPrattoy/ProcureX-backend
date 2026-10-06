@@ -3,7 +3,10 @@ import { requireAuth, requireRoles } from "../../middlewares/auth.js";
 import { validateBody } from "../../middlewares/validateRequest.js";
 import { BuyerQuotationController } from "./quotation.buyer.controller.js";
 import { QuotationController } from "./quotation.controller.js";
-import { submitQuotationSchema, updateQuotationSchema } from "./quotation.validation.js";
+import {
+  submitQuotationSchema,
+  updateQuotationSchema,
+} from "./quotation.validation.js";
 
 const rfqRouter = Router();
 const quotationRouter = Router();
@@ -44,7 +47,12 @@ rfqRouter.post(
 );
 
 // Supplier-owned quotation management.
-quotationRouter.get("/mine", requireAuth, requireRoles("SUPPLIER"), QuotationController.listMine);
+quotationRouter.get(
+  "/mine",
+  requireAuth,
+  requireRoles("SUPPLIER"),
+  QuotationController.listMine,
+);
 quotationRouter.get(
   "/mine/:quotationId",
   requireAuth,

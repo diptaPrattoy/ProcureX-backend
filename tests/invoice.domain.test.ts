@@ -48,7 +48,14 @@ test("items with no remaining accepted quantity cannot be invoiced again", () =>
     () =>
       calculateInvoice(
         "DELIVERED",
-        [{ id: "item-1", unitPrice: 10, acceptedQuantity: 5, invoicedQuantity: 5 }],
+        [
+          {
+            id: "item-1",
+            unitPrice: 10,
+            acceptedQuantity: 5,
+            invoicedQuantity: 5,
+          },
+        ],
         [{ purchaseOrderItemId: "item-1", quantity: 1 }],
         0,
       ),
@@ -57,7 +64,13 @@ test("items with no remaining accepted quantity cannot be invoiced again", () =>
 });
 
 test("invoicing before accepted goods exist is blocked by PO state", () => {
-  for (const status of ["ISSUED", "ACCEPTED", "IN_PROGRESS", "REJECTED", "CANCELLED"] as const) {
+  for (const status of [
+    "ISSUED",
+    "ACCEPTED",
+    "IN_PROGRESS",
+    "REJECTED",
+    "CANCELLED",
+  ] as const) {
     assert.throws(
       () =>
         calculateInvoice(
@@ -99,7 +112,14 @@ test("tax cannot exceed the subtotal", () => {
 
 test("only submitted invoices can be cancelled by a supplier", () => {
   assert.doesNotThrow(() => assertInvoiceCancellationAllowed("SUBMITTED"));
-  for (const status of ["UNDER_REVIEW", "APPROVED", "REJECTED", "PAYMENT_PENDING", "PAID", "CANCELLED"]) {
+  for (const status of [
+    "UNDER_REVIEW",
+    "APPROVED",
+    "REJECTED",
+    "PAYMENT_PENDING",
+    "PAID",
+    "CANCELLED",
+  ]) {
     assert.throws(
       () => assertInvoiceCancellationAllowed(status),
       (error) => error instanceof AppError && error.statusCode === 409,

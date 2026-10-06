@@ -8,6 +8,10 @@ const router = Router();
 
 router.use(requireAuth, requireRoles("BUYER"));
 router.get("/me/profile", BuyerController.getMyProfile);
-router.patch("/me/profile", validateBody(updateBuyerProfileSchema), BuyerController.updateMyProfile);
+router.patch(
+  "/me/profile",
+  validateBody(updateBuyerProfileSchema),
+  BuyerController.updateMyProfile,
+);
 
 export const BuyerRoutes = router;

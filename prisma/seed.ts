@@ -16,42 +16,50 @@ const categories = [
   {
     name: "IT & Electronics",
     slug: "it-electronics",
-    description: "Computers, networking, peripherals, electronics and related technology procurement.",
+    description:
+      "Computers, networking, peripherals, electronics and related technology procurement.",
   },
   {
     name: "Office Supplies",
     slug: "office-supplies",
-    description: "Stationery, furniture, consumables and general workplace supplies.",
+    description:
+      "Stationery, furniture, consumables and general workplace supplies.",
   },
   {
     name: "Industrial Equipment",
     slug: "industrial-equipment",
-    description: "Machinery, tools, production equipment and industrial components.",
+    description:
+      "Machinery, tools, production equipment and industrial components.",
   },
   {
     name: "Professional Services",
     slug: "professional-services",
-    description: "Consulting, software, legal, accounting, design and other professional services.",
+    description:
+      "Consulting, software, legal, accounting, design and other professional services.",
   },
   {
     name: "Facility & Maintenance",
     slug: "facility-maintenance",
-    description: "Facility operations, repair, cleaning, maintenance and related services.",
+    description:
+      "Facility operations, repair, cleaning, maintenance and related services.",
   },
   {
     name: "Logistics & Transportation",
     slug: "logistics-transportation",
-    description: "Freight, courier, warehousing, fleet and transportation services.",
+    description:
+      "Freight, courier, warehousing, fleet and transportation services.",
   },
   {
     name: "Construction Materials",
     slug: "construction-materials",
-    description: "Building materials, fixtures, hardware and construction supplies.",
+    description:
+      "Building materials, fixtures, hardware and construction supplies.",
   },
   {
     name: "Medical & Lab Supplies",
     slug: "medical-lab-supplies",
-    description: "Medical devices, laboratory equipment, consumables and healthcare supplies.",
+    description:
+      "Medical devices, laboratory equipment, consumables and healthcare supplies.",
   },
 ] as const;
 
@@ -60,12 +68,16 @@ const seedAdmin = async () => {
   const password = process.env.SEED_ADMIN_PASSWORD;
 
   if (!email && !password) {
-    console.log("Skipped ADMIN seed because SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD are not configured.");
+    console.log(
+      "Skipped ADMIN seed because SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD are not configured.",
+    );
     return;
   }
 
   if (!email || !password) {
-    throw new Error("Both SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD are required to seed an ADMIN");
+    throw new Error(
+      "Both SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD are required to seed an ADMIN",
+    );
   }
 
   if (password.length < 8) {
@@ -75,7 +87,9 @@ const seedAdmin = async () => {
   const existing = await prisma.user.findUnique({ where: { email } });
 
   if (existing && existing.role !== "ADMIN") {
-    throw new Error(`Cannot seed ADMIN: ${email} already belongs to a ${existing.role} account`);
+    throw new Error(
+      `Cannot seed ADMIN: ${email} already belongs to a ${existing.role} account`,
+    );
   }
 
   const passwordHash = await hash(password, 12);

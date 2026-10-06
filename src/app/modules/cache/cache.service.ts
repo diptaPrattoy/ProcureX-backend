@@ -1,5 +1,5 @@
-import { env } from "../../config/env.js";
 import { redis, redisEnabled } from "../../../lib/redis.js";
+import { env } from "../../config/env.js";
 import { buildCacheKey } from "./cache.domain.js";
 
 let hasLoggedRedisFailure = false;
@@ -11,7 +11,9 @@ const logRedisFailureOnce = (error: unknown) => {
 
   hasLoggedRedisFailure = true;
   const message = error instanceof Error ? error.message : String(error);
-  console.warn(`[cache] Redis unavailable; falling back to PostgreSQL. ${message}`);
+  console.warn(
+    `[cache] Redis unavailable; falling back to PostgreSQL. ${message}`,
+  );
 };
 
 const get = async <T>(key: string): Promise<T | null> => {
@@ -32,7 +34,11 @@ const get = async <T>(key: string): Promise<T | null> => {
   }
 };
 
-const set = async <T>(key: string, value: T, ttlSeconds: number): Promise<void> => {
+const set = async <T>(
+  key: string,
+  value: T,
+  ttlSeconds: number,
+): Promise<void> => {
   if (!redisEnabled || !redis) {
     return;
   }
@@ -59,7 +65,8 @@ const remember = async <T>(
   return fresh;
 };
 
-const namespaceVersionKey = (namespace: string) => buildCacheKey(`version:${namespace}`);
+const namespaceVersionKey = (namespace: string) =>
+  buildCacheKey(`version:${namespace}`);
 
 const getNamespaceVersion = async (namespace: string): Promise<number> => {
   if (!redisEnabled || !redis) {
@@ -105,7 +112,11 @@ const rememberVersioned = async <T>(
   loader: () => Promise<T>,
 ): Promise<T> => {
   const version = await getNamespaceVersion(namespace);
-  return remember(buildCacheKey(`${namespace}:v${version}`, payload), ttlSeconds, loader);
+  return remember(
+    buildCacheKey(`${namespace}:v${version}`, payload),
+    ttlSeconds,
+    loader,
+  );
 };
 
 const status = () => ({

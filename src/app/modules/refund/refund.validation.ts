@@ -28,7 +28,15 @@ export const refundListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(50).default(20),
   status: z
-    .enum(["REQUESTED", "APPROVED", "PROCESSING", "SUCCEEDED", "REJECTED", "FAILED", "CANCELLED"])
+    .enum([
+      "REQUESTED",
+      "APPROVED",
+      "PROCESSING",
+      "SUCCEEDED",
+      "REJECTED",
+      "FAILED",
+      "CANCELLED",
+    ])
     .optional(),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });

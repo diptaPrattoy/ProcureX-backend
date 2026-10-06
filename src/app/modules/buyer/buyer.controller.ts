@@ -18,7 +18,11 @@ const requireUserId = (req: Request): string => {
 
 const getMyProfile = catchAsync(async (req: Request, res: Response) => {
   const data = await BuyerService.getMyProfile(requireUserId(req));
-  sendResponse(res, { statusCode: 200, message: "Buyer profile retrieved successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Buyer profile retrieved successfully",
+    data,
+  });
 });
 
 const updateMyProfile = catchAsync(async (req: Request, res: Response) => {
@@ -27,7 +31,11 @@ const updateMyProfile = catchAsync(async (req: Request, res: Response) => {
     req.body,
     getAuditContext(req),
   );
-  sendResponse(res, { statusCode: 200, message: "Buyer profile updated successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Buyer profile updated successfully",
+    data,
+  });
 });
 
 export const BuyerController = { getMyProfile, updateMyProfile };

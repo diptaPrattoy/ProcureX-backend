@@ -1,13 +1,16 @@
 import type { Prisma } from "../../../generated/prisma/client";
 import { prisma } from "../../../lib/prisma.js";
 import { AppError } from "../../errors/AppError.js";
-import { AuditService, type AuditContext } from "../audit/audit.service.js";
+import { type AuditContext, AuditService } from "../audit/audit.service.js";
 import type {
   CreateRfqInput,
   MyRfqListQuery,
   OpenRfqListQuery,
   UpdateRfqInput,
 } from "./rfq.validation.js";
+
+const nextVersionTimestamp = (current: Date, now = new Date()) =>
+  new Date(Math.max(now.getTime(), current.getTime() + 1));
 
 const rfqDetailSelect = {
   id: true,
@@ -100,7 +103,10 @@ const rfqListSelect = {
   },
 } as const;
 
-const assertActiveCategory = async (db: Prisma.TransactionClient, categoryId: string) => {
+const assertActiveCategory = async (
+  db: Prisma.TransactionClient,
+  categoryId: string,
+) => {
   const category = await db.category.findFirst({
     where: {
       id: categoryId,
@@ -115,7 +121,10 @@ const assertActiveCategory = async (db: Prisma.TransactionClient, categoryId: st
   }
 };
 
-const assertDates = (submissionDeadline: Date, expectedDeliveryDate?: Date | null) => {
+const assertDates = (
+  submissionDeadline: Date,
+  expectedDeliveryDate?: Date | null,
+) => {
   if (submissionDeadline <= new Date()) {
     throw new AppError(400, "Submission deadline must be in the future");
   }
@@ -125,7 +134,10 @@ const assertDates = (submissionDeadline: Date, expectedDeliveryDate?: Date | nul
     deadlineDate.setUTCHours(0, 0, 0, 0);
 
     if (expectedDeliveryDate < deadlineDate) {
-      throw new AppError(400, "Expected delivery date cannot be before the submission deadline");
+      throw new AppError(
+        400,
+        "Expected delivery date cannot be before the submission deadline",
+      );
     }
   }
 };
@@ -134,15 +146,28 @@ const resolveBudgetRange = (
   current: { budgetMin: unknown | null; budgetMax: unknown | null },
   input: UpdateRfqInput,
 ) => {
-  const nextMin = input.budgetMin === undefined ? current.budgetMin : input.budgetMin;
-  const nextMax = input.budgetMax === undefined ? current.budgetMax : input.budgetMax;
+  const nextMin =
+    input.budgetMin === undefined ? current.budgetMin : input.budgetMin;
+  const nextMax =
+    input.budgetMax === undefined ? current.budgetMax : input.budgetMax;
 
-  if (nextMin !== null && nextMax !== null && Number(nextMin) > Number(nextMax)) {
-    throw new AppError(400, "budgetMax must be greater than or equal to budgetMin");
+  if (
+    nextMin !== null &&
+    nextMax !== null &&
+    Number(nextMin) > Number(nextMax)
+  ) {
+    throw new AppError(
+      400,
+      "budgetMax must be greater than or equal to budgetMin",
+    );
   }
 };
 
-const createDraft = async (buyerId: string, input: CreateRfqInput, context: AuditContext) => {
+const createDraft = async (
+  buyerId: string,
+  input: CreateRfqInput,
+  context: AuditContext,
+) => {
   const submissionDeadline = new Date(input.submissionDeadline);
   const expectedDeliveryDate = input.expectedDeliveryDate
     ? new Date(`${input.expectedDeliveryDate}T00:00:00.000Z`)
@@ -182,7 +207,9 @@ const createDraft = async (buyerId: string, input: CreateRfqInput, context: Audi
           create: input.items.map((item) => ({
             itemName: item.itemName,
             description: item.description,
-            specifications: item.specifications as Prisma.InputJsonValue | undefined,
+            specifications: item.specifications as
+              | Prisma.InputJsonValue
+              | undefined,
             quantity: item.quantity,
             unit: item.unit,
           })),
@@ -225,6 +252,7 @@ const updateDraft = async (
         budgetMax: true,
         submissionDeadline: true,
         expectedDeliveryDate: true,
+        updatedAt: true,
       },
     });
 
@@ -253,12 +281,14 @@ const updateDraft = async (
 
     assertDates(submissionDeadline, expectedDeliveryDate);
 
-    if (input.items) {
-      await tx.rfqItem.deleteMany({ where: { rfqId } });
-    }
-
-    const updated = await tx.rfq.update({
-      where: { id: rfqId },
+    const claimed = await tx.rfq.updateMany({
+      where: {
+        id: rfqId,
+        buyerId,
+        status: "DRAFT",
+        deletedAt: null,
+        updatedAt: current.updatedAt,
+      },
       data: {
         categoryId: input.categoryId,
         title: input.title,
@@ -266,29 +296,44 @@ const updateDraft = async (
         currency: input.currency,
         budgetMin: input.budgetMin,
         budgetMax: input.budgetMax,
-        submissionDeadline: input.submissionDeadline ? submissionDeadline : undefined,
+        submissionDeadline: input.submissionDeadline
+          ? submissionDeadline
+          : undefined,
         expectedDeliveryDate:
-          input.expectedDeliveryDate === undefined ? undefined : expectedDeliveryDate,
+          input.expectedDeliveryDate === undefined
+            ? undefined
+            : expectedDeliveryDate,
         deliveryAddressLine1: input.deliveryAddressLine1,
         deliveryAddressLine2: input.deliveryAddressLine2,
         deliveryCity: input.deliveryCity,
         deliveryState: input.deliveryState,
         deliveryPostalCode: input.deliveryPostalCode,
         deliveryCountry: input.deliveryCountry,
-        ...(input.items
-          ? {
-              items: {
-                create: input.items.map((item) => ({
-                  itemName: item.itemName,
-                  description: item.description,
-                  specifications: item.specifications as Prisma.InputJsonValue | undefined,
-                  quantity: item.quantity,
-                  unit: item.unit,
-                })),
-              },
-            }
-          : {}),
+        updatedAt: nextVersionTimestamp(current.updatedAt),
       },
+    });
+    if (claimed.count !== 1) {
+      throw new AppError(409, "RFQ state changed; retry the request");
+    }
+
+    if (input.items) {
+      await tx.rfqItem.deleteMany({ where: { rfqId } });
+      await tx.rfqItem.createMany({
+        data: input.items.map((item) => ({
+          rfqId,
+          itemName: item.itemName,
+          description: item.description,
+          specifications: item.specifications as
+            | Prisma.InputJsonValue
+            | undefined,
+          quantity: item.quantity,
+          unit: item.unit,
+        })),
+      });
+    }
+
+    const updated = await tx.rfq.findUniqueOrThrow({
+      where: { id: rfqId },
       select: rfqDetailSelect,
     });
 
@@ -308,7 +353,11 @@ const updateDraft = async (
   });
 };
 
-const publish = async (buyerId: string, rfqId: string, context: AuditContext) => {
+const publish = async (
+  buyerId: string,
+  rfqId: string,
+  context: AuditContext,
+) => {
   return prisma.$transaction(async (tx) => {
     const rfq = await tx.rfq.findFirst({
       where: { id: rfqId, buyerId, deletedAt: null },
@@ -337,12 +386,28 @@ const publish = async (buyerId: string, rfqId: string, context: AuditContext) =>
 
     assertDates(rfq.submissionDeadline, rfq.expectedDeliveryDate);
 
-    const updated = await tx.rfq.update({
-      where: { id: rfqId },
+    const publishedAt = new Date();
+    const versionAt = nextVersionTimestamp(rfq.updatedAt, publishedAt);
+    const claimed = await tx.rfq.updateMany({
+      where: {
+        id: rfqId,
+        buyerId,
+        status: "DRAFT",
+        deletedAt: null,
+        updatedAt: rfq.updatedAt,
+      },
       data: {
         status: "OPEN",
-        publishedAt: new Date(),
+        publishedAt,
+        updatedAt: versionAt,
       },
+    });
+    if (claimed.count !== 1) {
+      throw new AppError(409, "RFQ state changed; retry the request");
+    }
+
+    const updated = await tx.rfq.findUniqueOrThrow({
+      where: { id: rfqId },
       select: rfqDetailSelect,
     });
 
@@ -359,11 +424,15 @@ const publish = async (buyerId: string, rfqId: string, context: AuditContext) =>
   });
 };
 
-const cancel = async (buyerId: string, rfqId: string, context: AuditContext) => {
+const cancel = async (
+  buyerId: string,
+  rfqId: string,
+  context: AuditContext,
+) => {
   return prisma.$transaction(async (tx) => {
     const rfq = await tx.rfq.findFirst({
       where: { id: rfqId, buyerId, deletedAt: null },
-      select: { id: true, status: true },
+      select: { id: true, status: true, updatedAt: true },
     });
 
     if (!rfq) {
@@ -373,12 +442,28 @@ const cancel = async (buyerId: string, rfqId: string, context: AuditContext) => 
       throw new AppError(409, "This RFQ can no longer be cancelled");
     }
 
-    const updated = await tx.rfq.update({
-      where: { id: rfqId },
+    const cancelledAt = new Date();
+    const versionAt = nextVersionTimestamp(rfq.updatedAt, cancelledAt);
+    const claimed = await tx.rfq.updateMany({
+      where: {
+        id: rfqId,
+        buyerId,
+        status: rfq.status,
+        deletedAt: null,
+        updatedAt: rfq.updatedAt,
+      },
       data: {
         status: "CANCELLED",
-        cancelledAt: new Date(),
+        cancelledAt,
+        updatedAt: versionAt,
       },
+    });
+    if (claimed.count !== 1) {
+      throw new AppError(409, "RFQ state changed; retry the request");
+    }
+
+    const updated = await tx.rfq.findUniqueOrThrow({
+      where: { id: rfqId },
       select: rfqDetailSelect,
     });
 
@@ -395,11 +480,15 @@ const cancel = async (buyerId: string, rfqId: string, context: AuditContext) => 
   });
 };
 
-const softDelete = async (buyerId: string, rfqId: string, context: AuditContext) => {
+const softDelete = async (
+  buyerId: string,
+  rfqId: string,
+  context: AuditContext,
+) => {
   return prisma.$transaction(async (tx) => {
     const rfq = await tx.rfq.findFirst({
       where: { id: rfqId, buyerId, deletedAt: null },
-      select: { id: true, status: true },
+      select: { id: true, status: true, updatedAt: true },
     });
 
     if (!rfq) {
@@ -409,10 +498,21 @@ const softDelete = async (buyerId: string, rfqId: string, context: AuditContext)
       throw new AppError(409, "Only draft or cancelled RFQs can be deleted");
     }
 
-    await tx.rfq.update({
-      where: { id: rfqId },
-      data: { deletedAt: new Date() },
+    const deletedAt = new Date();
+    const versionAt = nextVersionTimestamp(rfq.updatedAt, deletedAt);
+    const claimed = await tx.rfq.updateMany({
+      where: {
+        id: rfqId,
+        buyerId,
+        status: rfq.status,
+        deletedAt: null,
+        updatedAt: rfq.updatedAt,
+      },
+      data: { deletedAt, updatedAt: versionAt },
     });
+    if (claimed.count !== 1) {
+      throw new AppError(409, "RFQ state changed; retry the request");
+    }
 
     await AuditService.create(tx, {
       actorId: buyerId,
@@ -440,20 +540,30 @@ const getMineById = async (buyerId: string, rfqId: string) => {
   return rfq;
 };
 
-const buildCommonListWhere = (query: MyRfqListQuery | OpenRfqListQuery): Prisma.RfqWhereInput => ({
+const buildCommonListWhere = (
+  query: MyRfqListQuery | OpenRfqListQuery,
+): Prisma.RfqWhereInput => ({
   deletedAt: null,
   ...(query.search
     ? {
         OR: [
           { title: { contains: query.search, mode: "insensitive" } },
           { description: { contains: query.search, mode: "insensitive" } },
-          { items: { some: { itemName: { contains: query.search, mode: "insensitive" } } } },
+          {
+            items: {
+              some: {
+                itemName: { contains: query.search, mode: "insensitive" },
+              },
+            },
+          },
         ],
       }
     : {}),
   ...(query.categoryId ? { categoryId: query.categoryId } : {}),
   ...(query.currency ? { currency: query.currency } : {}),
-  ...(query.city ? { deliveryCity: { equals: query.city, mode: "insensitive" } } : {}),
+  ...(query.city
+    ? { deliveryCity: { equals: query.city, mode: "insensitive" } }
+    : {}),
   ...(query.country
     ? { deliveryCountry: { equals: query.country, mode: "insensitive" } }
     : {}),

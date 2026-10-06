@@ -34,7 +34,10 @@ export const evaluateGoodsReceipt = (
   orderedItems: OrderedReceiptItem[],
   receiptItems: ReceiptItemInput[],
 ) => {
-  if (purchaseOrderStatus !== "IN_PROGRESS" && purchaseOrderStatus !== "PARTIALLY_DELIVERED") {
+  if (
+    purchaseOrderStatus !== "IN_PROGRESS" &&
+    purchaseOrderStatus !== "PARTIALLY_DELIVERED"
+  ) {
     throw new AppError(
       409,
       "Goods can only be received after fulfillment has started and before delivery is complete",
@@ -53,13 +56,19 @@ export const evaluateGoodsReceipt = (
 
   const normalizedItems = receiptItems.map((input) => {
     if (seen.has(input.purchaseOrderItemId)) {
-      throw new AppError(400, "A purchase order item can appear only once in a goods receipt");
+      throw new AppError(
+        400,
+        "A purchase order item can appear only once in a goods receipt",
+      );
     }
     seen.add(input.purchaseOrderItemId);
 
     const orderedItem = orderedById.get(input.purchaseOrderItemId);
     if (!orderedItem) {
-      throw new AppError(400, "Goods receipt contains an item that does not belong to this purchase order");
+      throw new AppError(
+        400,
+        "Goods receipt contains an item that does not belong to this purchase order",
+      );
     }
 
     const receivedMilli = toMilli(input.quantityReceived);
@@ -72,18 +81,30 @@ export const evaluateGoodsReceipt = (
       throw new AppError(400, "Received quantity must be greater than zero");
     }
     if (acceptedMilli < 0 || rejectedMilli < 0) {
-      throw new AppError(400, "Accepted and rejected quantities cannot be negative");
+      throw new AppError(
+        400,
+        "Accepted and rejected quantities cannot be negative",
+      );
     }
     if (acceptedMilli + rejectedMilli !== receivedMilli) {
-      throw new AppError(400, "Accepted plus rejected quantity must equal received quantity");
+      throw new AppError(
+        400,
+        "Accepted plus rejected quantity must equal received quantity",
+      );
     }
 
     const remainingMilli = orderedMilli - acceptedToDateMilli;
     if (remainingMilli <= 0) {
-      throw new AppError(409, "This purchase order item has already been fully accepted");
+      throw new AppError(
+        409,
+        "This purchase order item has already been fully accepted",
+      );
     }
     if (receivedMilli > remainingMilli) {
-      throw new AppError(409, "Received quantity exceeds the remaining purchase order quantity");
+      throw new AppError(
+        409,
+        "Received quantity exceeds the remaining purchase order quantity",
+      );
     }
 
     totalReceivedMilli += receivedMilli;
@@ -107,7 +128,10 @@ export const evaluateGoodsReceipt = (
         : "PARTIALLY_ACCEPTED";
 
   const receiptAcceptedByItem = new Map(
-    normalizedItems.map((item) => [item.purchaseOrderItemId, toMilli(item.quantityAccepted)]),
+    normalizedItems.map((item) => [
+      item.purchaseOrderItemId,
+      toMilli(item.quantityAccepted),
+    ]),
   );
 
   let anyAccepted = false;

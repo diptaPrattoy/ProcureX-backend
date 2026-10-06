@@ -1,8 +1,8 @@
+import { Ratelimit } from "@upstash/ratelimit";
 import type { NextFunction, Request, Response } from "express";
 import { rateLimit } from "express-rate-limit";
-import { Ratelimit } from "@upstash/ratelimit";
-import { env } from "../config/env.js";
 import { rateLimitRedis } from "../../lib/redis.js";
+import { env } from "../config/env.js";
 import { buildRateLimitIdentifier } from "./rateLimit.domain.js";
 
 const baseMessage = {
@@ -65,7 +65,10 @@ const setHeaders = (
 ): void => {
   res.setHeader("RateLimit-Limit", String(result.limit));
   res.setHeader("RateLimit-Remaining", String(Math.max(0, result.remaining)));
-  res.setHeader("RateLimit-Reset", String(Math.max(0, Math.ceil((result.reset - Date.now()) / 1000))));
+  res.setHeader(
+    "RateLimit-Reset",
+    String(Math.max(0, Math.ceil((result.reset - Date.now()) / 1000))),
+  );
 };
 
 const distributedMiddleware = (
@@ -73,14 +76,21 @@ const distributedMiddleware = (
   limiter: Ratelimit,
   message: typeof baseMessage,
 ) => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     if (!env.RATE_LIMIT_ENABLED || req.method === "OPTIONS") {
       next();
       return;
     }
 
     try {
-      const identifier = buildRateLimitIdentifier(scope, req.ip ?? req.socket.remoteAddress);
+      const identifier = buildRateLimitIdentifier(
+        scope,
+        req.ip ?? req.socket.remoteAddress,
+      );
       const result = await limiter.limit(identifier);
       setHeaders(res, result);
 
@@ -96,7 +106,9 @@ const distributedMiddleware = (
       if (!hasLoggedDistributedFailure && env.NODE_ENV !== "test") {
         hasLoggedDistributedFailure = true;
         const details = error instanceof Error ? error.message : String(error);
-        console.warn(`[ratelimit] Distributed limiter unavailable; failing open. ${details}`);
+        console.warn(
+          `[ratelimit] Distributed limiter unavailable; failing open. ${details}`,
+        );
       }
       next();
     }

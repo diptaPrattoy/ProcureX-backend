@@ -1,4 +1,7 @@
 {
+  "files": {
+    "includes": ["**", "!!dist", "!!src/generated"]
+  },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -7,7 +10,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "preset": "recommended"
     }
   },
   "javascript": {

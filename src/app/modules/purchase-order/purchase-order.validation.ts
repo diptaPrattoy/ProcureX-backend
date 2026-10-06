@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-export const purchaseOrderIdParamSchema = z.object({ purchaseOrderId: z.uuid() });
+export const purchaseOrderIdParamSchema = z.object({
+  purchaseOrderId: z.uuid(),
+});
 
 export const purchaseOrderListQuerySchema = z.object({
   status: z
@@ -22,4 +24,6 @@ export const purchaseOrderListQuerySchema = z.object({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
-export type PurchaseOrderListQuery = z.infer<typeof purchaseOrderListQuerySchema>;
+export type PurchaseOrderListQuery = z.infer<
+  typeof purchaseOrderListQuerySchema
+>;

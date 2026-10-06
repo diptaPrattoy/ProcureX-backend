@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma, UserRole } from "../../../generated/prisma/client.js";
 import { prisma } from "../../../lib/prisma.js";
 import { AppError } from "../../errors/AppError.js";
-import { AuditService, type AuditContext } from "../audit/audit.service.js";
+import { type AuditContext, AuditService } from "../audit/audit.service.js";
 import { evaluateGoodsReceipt } from "./goods-receipt.domain.js";
 import type {
   CreateGoodsReceiptInput,
@@ -74,7 +74,10 @@ const goodsReceiptListSelect = {
 
 type ProcurementRole = Extract<UserRole, "BUYER" | "SUPPLIER">;
 
-const purchaseOrderScope = (userId: string, role: ProcurementRole): Prisma.PurchaseOrderWhereInput =>
+const purchaseOrderScope = (
+  userId: string,
+  role: ProcurementRole,
+): Prisma.PurchaseOrderWhereInput =>
   role === "BUYER" ? { buyerId: userId } : { supplierId: userId };
 
 const generateReceiptNumber = () => {
@@ -113,12 +116,17 @@ const create = async (
       const acceptedRows = await tx.goodsReceiptItem.groupBy({
         by: ["purchaseOrderItemId"],
         where: {
-          purchaseOrderItemId: { in: purchaseOrder.items.map((item) => item.id) },
+          purchaseOrderItemId: {
+            in: purchaseOrder.items.map((item) => item.id),
+          },
         },
         _sum: { quantityAccepted: true },
       });
       const acceptedByItem = new Map(
-        acceptedRows.map((row) => [row.purchaseOrderItemId, Number(row._sum.quantityAccepted ?? 0)]),
+        acceptedRows.map((row) => [
+          row.purchaseOrderItemId,
+          Number(row._sum.quantityAccepted ?? 0),
+        ]),
       );
 
       const evaluation = evaluateGoodsReceipt(
@@ -163,12 +171,17 @@ const create = async (
         },
         data: {
           status: evaluation.nextPurchaseOrderStatus,
-          ...(evaluation.nextPurchaseOrderStatus === "DELIVERED" ? { deliveredAt: now } : {}),
+          ...(evaluation.nextPurchaseOrderStatus === "DELIVERED"
+            ? { deliveredAt: now }
+            : {}),
         },
       });
 
       if (update.count !== 1) {
-        throw new AppError(409, "Purchase order changed while goods were being received; retry the receipt");
+        throw new AppError(
+          409,
+          "Purchase order changed while goods were being received; retry the receipt",
+        );
       }
 
       await AuditService.create(tx, {
@@ -249,7 +262,11 @@ const listByPurchaseOrder = async (
   };
 };
 
-const getById = async (userId: string, role: ProcurementRole, goodsReceiptId: string) => {
+const getById = async (
+  userId: string,
+  role: ProcurementRole,
+  goodsReceiptId: string,
+) => {
   const receipt = await prisma.goodsReceipt.findFirst({
     where: {
       id: goodsReceiptId,

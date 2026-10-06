@@ -1,7 +1,7 @@
 import { prisma } from "../../../lib/prisma.js";
 import { env } from "../../config/env.js";
-import { CacheService } from "../cache/cache.service.js";
 import { buildCacheKey } from "../cache/cache.domain.js";
+import { CacheService } from "../cache/cache.service.js";
 import {
   buildDailyTrendBuckets,
   buildFinancialCurrencySummary,
@@ -45,7 +45,9 @@ const getOverviewFromDatabase = async (query: DashboardRangeQuery) => {
       where: { deletedAt: null },
       select: { verificationStatus: true },
     }),
-    prisma.rfq.count({ where: { createdAt: { gte: from, lte: to }, deletedAt: null } }),
+    prisma.rfq.count({
+      where: { createdAt: { gte: from, lte: to }, deletedAt: null },
+    }),
     prisma.quotation.count({
       where: { submittedAt: { gte: from, lte: to }, deletedAt: null },
     }),
@@ -72,15 +74,21 @@ const getOverviewFromDatabase = async (query: DashboardRangeQuery) => {
     prisma.invoice.count({
       where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
     }),
-    prisma.payment.count({ where: { status: { in: ["PENDING", "PROCESSING"] } } }),
+    prisma.payment.count({
+      where: { status: { in: ["PENDING", "PROCESSING"] } },
+    }),
     prisma.refund.count({
       where: { status: { in: ["REQUESTED", "APPROVED", "PROCESSING"] } },
     }),
-    prisma.dispute.count({ where: { status: { in: ["OPEN", "UNDER_REVIEW"] } } }),
+    prisma.dispute.count({
+      where: { status: { in: ["OPEN", "UNDER_REVIEW"] } },
+    }),
     prisma.invoice.count({
       where: {
         dueDate: { lt: now },
-        status: { in: ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "PAYMENT_PENDING"] },
+        status: {
+          in: ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "PAYMENT_PENDING"],
+        },
       },
     }),
     prisma.auditLog.findMany({
@@ -181,8 +189,7 @@ const getFinancialsFromDatabase = async (query: DashboardRangeQuery) => {
 
   return {
     range: { from, to },
-    note:
-      "Gross payments and refunds use the selected period; outstanding approved invoices are a current snapshot. Amounts are never combined across currencies.",
+    note: "Gross payments and refunds use the selected period; outstanding approved invoices are a current snapshot. Amounts are never combined across currencies.",
     currencies: buildFinancialCurrencySummary(gross, refunds, outstanding),
   };
 };
@@ -190,42 +197,51 @@ const getFinancialsFromDatabase = async (query: DashboardRangeQuery) => {
 const getTrendsFromDatabase = async (query: DashboardTrendQuery) => {
   const now = new Date();
   const end = new Date(startOfUtcDay(now).getTime() + 24 * 60 * 60 * 1000 - 1);
-  const start = new Date(startOfUtcDay(now).getTime() - (query.days - 1) * 24 * 60 * 60 * 1000);
+  const start = new Date(
+    startOfUtcDay(now).getTime() - (query.days - 1) * 24 * 60 * 60 * 1000,
+  );
 
-  const [rfqs, quotations, purchaseOrders, invoices, payments, refunds, disputes] =
-    await Promise.all([
-      prisma.rfq.findMany({
-        where: { createdAt: { gte: start, lte: end }, deletedAt: null },
-        select: { createdAt: true },
-      }),
-      prisma.quotation.findMany({
-        where: { submittedAt: { gte: start, lte: end }, deletedAt: null },
-        select: { submittedAt: true },
-      }),
-      prisma.purchaseOrder.findMany({
-        where: { issuedAt: { gte: start, lte: end } },
-        select: { issuedAt: true },
-      }),
-      prisma.invoice.findMany({
-        where: { submittedAt: { gte: start, lte: end } },
-        select: { submittedAt: true },
-      }),
-      prisma.payment.findMany({
-        where: {
-          status: { in: ["SUCCEEDED", "REFUNDED"] },
-          completedAt: { gte: start, lte: end },
-        },
-        select: { completedAt: true },
-      }),
-      prisma.refund.findMany({
-        where: { requestedAt: { gte: start, lte: end } },
-        select: { requestedAt: true },
-      }),
-      prisma.dispute.findMany({
-        where: { createdAt: { gte: start, lte: end } },
-        select: { createdAt: true },
-      }),
-    ]);
+  const [
+    rfqs,
+    quotations,
+    purchaseOrders,
+    invoices,
+    payments,
+    refunds,
+    disputes,
+  ] = await Promise.all([
+    prisma.rfq.findMany({
+      where: { createdAt: { gte: start, lte: end }, deletedAt: null },
+      select: { createdAt: true },
+    }),
+    prisma.quotation.findMany({
+      where: { submittedAt: { gte: start, lte: end }, deletedAt: null },
+      select: { submittedAt: true },
+    }),
+    prisma.purchaseOrder.findMany({
+      where: { issuedAt: { gte: start, lte: end } },
+      select: { issuedAt: true },
+    }),
+    prisma.invoice.findMany({
+      where: { submittedAt: { gte: start, lte: end } },
+      select: { submittedAt: true },
+    }),
+    prisma.payment.findMany({
+      where: {
+        status: { in: ["SUCCEEDED", "REFUNDED"] },
+        completedAt: { gte: start, lte: end },
+      },
+      select: { completedAt: true },
+    }),
+    prisma.refund.findMany({
+      where: { requestedAt: { gte: start, lte: end } },
+      select: { requestedAt: true },
+    }),
+    prisma.dispute.findMany({
+      where: { createdAt: { gte: start, lte: end } },
+      select: { createdAt: true },
+    }),
+  ]);
 
   const completedPaymentDates = payments
     .map((row) => row.completedAt)

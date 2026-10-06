@@ -16,12 +16,17 @@ const getAuditContext = (req: Request) => ({
   userAgent: req.get("user-agent") ?? undefined,
 });
 
-const requirePrincipal = (req: Request): { id: string; role: Extract<UserRole, "BUYER" | "SUPPLIER"> } => {
+const requirePrincipal = (
+  req: Request,
+): { id: string; role: Extract<UserRole, "BUYER" | "SUPPLIER"> } => {
   if (!req.authUser) {
     throw new AppError(401, "Authentication required");
   }
   if (req.authUser.role !== "BUYER" && req.authUser.role !== "SUPPLIER") {
-    throw new AppError(403, "Only buyers and suppliers can access goods receipts");
+    throw new AppError(
+      403,
+      "Only buyers and suppliers can access goods receipts",
+    );
   }
   return { id: req.authUser.id, role: req.authUser.role };
 };
@@ -39,7 +44,11 @@ const create = catchAsync(async (req: Request, res: Response) => {
     input,
     getAuditContext(req),
   );
-  sendResponse(res, { statusCode: 201, message: "Goods receipt recorded successfully", data });
+  sendResponse(res, {
+    statusCode: 201,
+    message: "Goods receipt recorded successfully",
+    data,
+  });
 });
 
 const listByPurchaseOrder = catchAsync(async (req: Request, res: Response) => {
@@ -52,14 +61,26 @@ const listByPurchaseOrder = catchAsync(async (req: Request, res: Response) => {
     purchaseOrderId,
     query,
   );
-  sendResponse(res, { statusCode: 200, message: "Goods receipts retrieved successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Goods receipts retrieved successfully",
+    data,
+  });
 });
 
 const getById = catchAsync(async (req: Request, res: Response) => {
   const principal = requirePrincipal(req);
   const { goodsReceiptId } = goodsReceiptIdParamSchema.parse(req.params);
-  const data = await GoodsReceiptService.getById(principal.id, principal.role, goodsReceiptId);
-  sendResponse(res, { statusCode: 200, message: "Goods receipt retrieved successfully", data });
+  const data = await GoodsReceiptService.getById(
+    principal.id,
+    principal.role,
+    goodsReceiptId,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Goods receipt retrieved successfully",
+    data,
+  });
 });
 
 export const GoodsReceiptController = {

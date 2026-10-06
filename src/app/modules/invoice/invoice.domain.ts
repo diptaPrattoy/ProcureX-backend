@@ -34,7 +34,10 @@ export const calculateInvoice = (
   items: InvoiceItemInput[],
   taxAmount: number,
 ) => {
-  if (purchaseOrderStatus !== "PARTIALLY_DELIVERED" && purchaseOrderStatus !== "DELIVERED") {
+  if (
+    purchaseOrderStatus !== "PARTIALLY_DELIVERED" &&
+    purchaseOrderStatus !== "DELIVERED"
+  ) {
     throw new AppError(
       409,
       "Invoices can only be submitted for purchase orders with accepted goods",
@@ -51,13 +54,19 @@ export const calculateInvoice = (
 
   const normalizedItems = items.map((input) => {
     if (seen.has(input.purchaseOrderItemId)) {
-      throw new AppError(400, "A purchase order item can appear only once in an invoice");
+      throw new AppError(
+        400,
+        "A purchase order item can appear only once in an invoice",
+      );
     }
     seen.add(input.purchaseOrderItemId);
 
     const source = sourceById.get(input.purchaseOrderItemId);
     if (!source) {
-      throw new AppError(400, "Invoice contains an item that does not belong to this purchase order");
+      throw new AppError(
+        400,
+        "Invoice contains an item that does not belong to this purchase order",
+      );
     }
 
     const requestedMilli = toMilli(input.quantity);
@@ -69,10 +78,16 @@ export const calculateInvoice = (
       throw new AppError(400, "Invoice quantity must be greater than zero");
     }
     if (remainingMilli <= 0) {
-      throw new AppError(409, "This purchase order item has no accepted quantity left to invoice");
+      throw new AppError(
+        409,
+        "This purchase order item has no accepted quantity left to invoice",
+      );
     }
     if (requestedMilli > remainingMilli) {
-      throw new AppError(409, "Invoice quantity exceeds the remaining accepted quantity");
+      throw new AppError(
+        409,
+        "Invoice quantity exceeds the remaining accepted quantity",
+      );
     }
 
     const quantity = fromMilli(requestedMilli);
@@ -107,10 +122,12 @@ export const calculateInvoice = (
 
 export const assertInvoiceCancellationAllowed = (status: string) => {
   if (status !== "SUBMITTED") {
-    throw new AppError(409, "Only submitted invoices can be cancelled by the supplier");
+    throw new AppError(
+      409,
+      "Only submitted invoices can be cancelled by the supplier",
+    );
   }
 };
-
 
 export type InvoiceReviewableStatus =
   | "SUBMITTED"
@@ -121,19 +138,25 @@ export type InvoiceReviewableStatus =
   | "PAID"
   | "CANCELLED";
 
-export const assertInvoiceReviewStartAllowed = (status: InvoiceReviewableStatus) => {
+export const assertInvoiceReviewStartAllowed = (
+  status: InvoiceReviewableStatus,
+) => {
   if (status !== "SUBMITTED") {
     throw new AppError(409, "Only submitted invoices can enter review");
   }
 };
 
-export const assertInvoiceApprovalAllowed = (status: InvoiceReviewableStatus) => {
+export const assertInvoiceApprovalAllowed = (
+  status: InvoiceReviewableStatus,
+) => {
   if (status !== "UNDER_REVIEW") {
     throw new AppError(409, "Only invoices under review can be approved");
   }
 };
 
-export const assertInvoiceRejectionAllowed = (status: InvoiceReviewableStatus) => {
+export const assertInvoiceRejectionAllowed = (
+  status: InvoiceReviewableStatus,
+) => {
   if (status !== "UNDER_REVIEW") {
     throw new AppError(409, "Only invoices under review can be rejected");
   }

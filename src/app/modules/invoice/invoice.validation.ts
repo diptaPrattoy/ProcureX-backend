@@ -44,7 +44,9 @@ export const createInvoiceSchema = z
     });
   });
 
-export const purchaseOrderInvoiceParamSchema = z.object({ purchaseOrderId: z.uuid() });
+export const purchaseOrderInvoiceParamSchema = z.object({
+  purchaseOrderId: z.uuid(),
+});
 export const invoiceIdParamSchema = z.object({ invoiceId: z.uuid() });
 
 export const invoiceListQuerySchema = z.object({
@@ -62,13 +64,14 @@ export const invoiceListQuerySchema = z.object({
     ])
     .optional(),
   search: z.string().trim().max(100).optional(),
-  sortBy: z.enum(["submittedAt", "dueDate", "totalAmount", "updatedAt"]).default("submittedAt"),
+  sortBy: z
+    .enum(["submittedAt", "dueDate", "totalAmount", "updatedAt"])
+    .default("submittedAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
-
 
 export const rejectInvoiceSchema = z.object({
   reason: z.string().trim().min(5).max(500),

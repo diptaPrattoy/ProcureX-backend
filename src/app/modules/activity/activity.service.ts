@@ -1,7 +1,10 @@
 import type { Prisma } from "../../../generated/prisma/client";
 import { prisma } from "../../../lib/prisma.js";
 import { AppError } from "../../errors/AppError.js";
-import type { AdminAuditQuery, MyActivityQuery } from "./activity.validation.js";
+import type {
+  AdminAuditQuery,
+  MyActivityQuery,
+} from "./activity.validation.js";
 
 const buildWhere = (
   query: MyActivityQuery | AdminAuditQuery,

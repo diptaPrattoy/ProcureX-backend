@@ -1,8 +1,8 @@
 import type { Prisma } from "../../../generated/prisma/client";
 import { prisma } from "../../../lib/prisma.js";
 import { env } from "../../config/env.js";
-import { CacheService } from "../cache/cache.service.js";
 import { buildCacheKey } from "../cache/cache.domain.js";
+import { CacheService } from "../cache/cache.service.js";
 import type { CategoryListQuery } from "./category.validation.js";
 
 const listFromDatabase = async (query: CategoryListQuery) => {

@@ -13,7 +13,9 @@ export const rejectDisputeSchema = z.object({
   resolution: z.string().trim().min(10).max(5000),
 });
 
-export const purchaseOrderDisputeParamSchema = z.object({ purchaseOrderId: z.uuid() });
+export const purchaseOrderDisputeParamSchema = z.object({
+  purchaseOrderId: z.uuid(),
+});
 export const invoiceDisputeParamSchema = z.object({ invoiceId: z.uuid() });
 export const disputeIdParamSchema = z.object({ disputeId: z.uuid() });
 

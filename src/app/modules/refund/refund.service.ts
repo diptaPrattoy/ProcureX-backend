@@ -3,7 +3,7 @@ import type Stripe from "stripe";
 import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../../lib/prisma.js";
 import { AppError } from "../../errors/AppError.js";
-import { AuditService, type AuditContext } from "../audit/audit.service.js";
+import { type AuditContext, AuditService } from "../audit/audit.service.js";
 import { toStripeMinorUnits } from "../payment/payment.domain.js";
 import { getStripeClient } from "../payment/stripe.client.js";
 import {
@@ -11,11 +11,15 @@ import {
   assertPaymentCanBeRefunded,
   assertRefundCanBeCancelled,
   assertRefundCanBeReviewed,
+  canApplyProviderRefundStatus,
   fromStripeMinorUnits,
   mapStripeRefundStatus,
 } from "./refund.domain.js";
 import { reconcilePaymentRefundStatus } from "./refund.reconciliation.js";
-import type { RefundListQuery, RequestRefundInput } from "./refund.validation.js";
+import type {
+  RefundListQuery,
+  RequestRefundInput,
+} from "./refund.validation.js";
 
 const refundSelect = {
   id: true,
@@ -100,7 +104,10 @@ const requestRefund = async (
       }
       assertPaymentCanBeRefunded(payment.status);
       if (!payment.providerPaymentIntentId) {
-        throw new AppError(409, "Payment provider reference is not available for refunds");
+        throw new AppError(
+          409,
+          "Payment provider reference is not available for refunds",
+        );
       }
 
       const reserved = await tx.refund.aggregate({
@@ -111,7 +118,10 @@ const requestRefund = async (
         _sum: { amount: true },
       });
 
-      const paidMinor = toStripeMinorUnits(payment.amount.toString(), payment.currency);
+      const paidMinor = toStripeMinorUnits(
+        payment.amount.toString(),
+        payment.currency,
+      );
       const reservedMinor = reserved._sum.amount
         ? toStripeMinorUnits(reserved._sum.amount.toString(), payment.currency)
         : 0;
@@ -120,11 +130,15 @@ const requestRefund = async (
         throw new AppError(409, "No refundable payment balance remains");
       }
 
-      const requestedMinor = input.amount === undefined
-        ? remainingMinor
-        : toStripeMinorUnits(String(input.amount), payment.currency);
+      const requestedMinor =
+        input.amount === undefined
+          ? remainingMinor
+          : toStripeMinorUnits(String(input.amount), payment.currency);
       if (requestedMinor > remainingMinor) {
-        throw new AppError(409, "Refund amount exceeds the remaining refundable balance");
+        throw new AppError(
+          409,
+          "Refund amount exceeds the remaining refundable balance",
+        );
       }
 
       const refund = await tx.refund.create({
@@ -159,19 +173,29 @@ const requestRefund = async (
         where: { role: "ADMIN", status: "ACTIVE", deletedAt: null },
         select: { id: true },
       });
-      const notificationData: Prisma.NotificationCreateManyInput[] = admins.map((admin) => ({
-        userId: admin.id,
-        type: "REFUND_REQUESTED",
-        title: "Refund review required",
-        message: `A refund was requested for ${payment.invoice.invoiceNumber}.`,
-        metadata: { refundId: refund.id, paymentId: payment.id, invoiceId: payment.invoiceId },
-      }));
+      const notificationData: Prisma.NotificationCreateManyInput[] = admins.map(
+        (admin) => ({
+          userId: admin.id,
+          type: "REFUND_REQUESTED",
+          title: "Refund review required",
+          message: `A refund was requested for ${payment.invoice.invoiceNumber}.`,
+          metadata: {
+            refundId: refund.id,
+            paymentId: payment.id,
+            invoiceId: payment.invoiceId,
+          },
+        }),
+      );
       notificationData.push({
         userId: payment.invoice.supplierId,
         type: "REFUND_REQUESTED",
         title: "Refund requested",
         message: `A refund was requested for ${payment.invoice.invoiceNumber}.`,
-        metadata: { refundId: refund.id, paymentId: payment.id, invoiceId: payment.invoiceId },
+        metadata: {
+          refundId: refund.id,
+          paymentId: payment.id,
+          invoiceId: payment.invoiceId,
+        },
       });
       if (notificationData.length > 0) {
         await tx.notification.createMany({ data: notificationData });
@@ -221,7 +245,11 @@ const getMineById = async (buyerId: string, refundId: string) => {
   return refund;
 };
 
-const cancelMine = async (buyerId: string, refundId: string, context: AuditContext) => {
+const cancelMine = async (
+  buyerId: string,
+  refundId: string,
+  context: AuditContext,
+) => {
   return prisma.$transaction(async (tx) => {
     const refund = await tx.refund.findFirst({
       where: { id: refundId, requestedById: buyerId },
@@ -237,7 +265,10 @@ const cancelMine = async (buyerId: string, refundId: string, context: AuditConte
       data: { status: "CANCELLED", completedAt: new Date() },
     });
     if (claimed.count !== 1) {
-      throw new AppError(409, "Refund request state changed; retry the request");
+      throw new AppError(
+        409,
+        "Refund request state changed; retry the request",
+      );
     }
 
     await AuditService.create(tx, {
@@ -249,12 +280,17 @@ const cancelMine = async (buyerId: string, refundId: string, context: AuditConte
       ...context,
     });
 
-    return tx.refund.findUniqueOrThrow({ where: { id: refundId }, select: refundSelect });
+    return tx.refund.findUniqueOrThrow({
+      where: { id: refundId },
+      select: refundSelect,
+    });
   });
 };
 
 const listAdmin = async (query: RefundListQuery) => {
-  const where: Prisma.RefundWhereInput = query.status ? { status: query.status } : {};
+  const where: Prisma.RefundWhereInput = query.status
+    ? { status: query.status }
+    : {};
   const skip = (query.page - 1) * query.limit;
   const [items, total] = await Promise.all([
     prisma.refund.findMany({
@@ -278,7 +314,10 @@ const listAdmin = async (query: RefundListQuery) => {
 };
 
 const getAdminById = async (refundId: string) => {
-  const refund = await prisma.refund.findUnique({ where: { id: refundId }, select: refundSelect });
+  const refund = await prisma.refund.findUnique({
+    where: { id: refundId },
+    select: refundSelect,
+  });
   if (!refund) {
     throw new AppError(404, "Refund request not found");
   }
@@ -294,7 +333,13 @@ const reject = async (
   return prisma.$transaction(async (tx) => {
     const refund = await tx.refund.findUnique({
       where: { id: refundId },
-      select: { id: true, status: true, requestedById: true, paymentId: true, invoiceId: true },
+      select: {
+        id: true,
+        status: true,
+        requestedById: true,
+        paymentId: true,
+        invoiceId: true,
+      },
     });
     if (!refund) {
       throw new AppError(404, "Refund request not found");
@@ -313,7 +358,10 @@ const reject = async (
       },
     });
     if (claimed.count !== 1) {
-      throw new AppError(409, "Refund request state changed; retry the request");
+      throw new AppError(
+        409,
+        "Refund request state changed; retry the request",
+      );
     }
 
     await AuditService.create(tx, {
@@ -321,7 +369,11 @@ const reject = async (
       action: "REFUND_REJECTED",
       entityType: "Refund",
       entityId: refundId,
-      metadata: { paymentId: refund.paymentId, invoiceId: refund.invoiceId, note },
+      metadata: {
+        paymentId: refund.paymentId,
+        invoiceId: refund.invoiceId,
+        note,
+      },
       ...context,
     });
     await tx.notification.create({
@@ -330,11 +382,18 @@ const reject = async (
         type: "REFUND_REJECTED",
         title: "Refund request rejected",
         message: "Your refund request was reviewed and rejected.",
-        metadata: { refundId, paymentId: refund.paymentId, invoiceId: refund.invoiceId },
+        metadata: {
+          refundId,
+          paymentId: refund.paymentId,
+          invoiceId: refund.invoiceId,
+        },
       },
     });
 
-    return tx.refund.findUniqueOrThrow({ where: { id: refundId }, select: refundSelect });
+    return tx.refund.findUniqueOrThrow({
+      where: { id: refundId },
+      select: refundSelect,
+    });
   });
 };
 
@@ -386,13 +445,22 @@ const prepareProviderRefund = async (
       );
     }
     if (retry && refund.providerRefundId) {
-      throw new AppError(409, "This failed provider refund cannot be retried automatically");
+      throw new AppError(
+        409,
+        "This failed provider refund cannot be retried automatically",
+      );
     }
     if (refund.payment.status !== "SUCCEEDED") {
-      throw new AppError(409, "The payment is no longer eligible for this refund");
+      throw new AppError(
+        409,
+        "The payment is no longer eligible for this refund",
+      );
     }
     if (!refund.payment.providerPaymentIntentId) {
-      throw new AppError(409, "Stripe PaymentIntent is missing for this payment");
+      throw new AppError(
+        409,
+        "Stripe PaymentIntent is missing for this payment",
+      );
     }
 
     const claimed = await tx.refund.updateMany({
@@ -406,7 +474,10 @@ const prepareProviderRefund = async (
       },
     });
     if (claimed.count !== 1) {
-      throw new AppError(409, "Refund request state changed; retry the request");
+      throw new AppError(
+        409,
+        "Refund request state changed; retry the request",
+      );
     }
 
     await AuditService.create(tx, {
@@ -414,7 +485,11 @@ const prepareProviderRefund = async (
       action: retry ? "REFUND_PROVIDER_RETRY_APPROVED" : "REFUND_APPROVED",
       entityType: "Refund",
       entityId: refund.id,
-      metadata: { paymentId: refund.paymentId, invoiceId: refund.invoiceId, amount: Number(refund.amount) },
+      metadata: {
+        paymentId: refund.paymentId,
+        invoiceId: refund.invoiceId,
+        amount: Number(refund.amount),
+      },
       ...context,
     });
 
@@ -431,7 +506,13 @@ const markProviderCallFailed = async (
   await prisma.$transaction(async (tx) => {
     const refund = await tx.refund.findUnique({
       where: { id: refundId },
-      select: { id: true, requestedById: true, paymentId: true, invoiceId: true, providerRefundId: true },
+      select: {
+        id: true,
+        requestedById: true,
+        paymentId: true,
+        invoiceId: true,
+        providerRefundId: true,
+      },
     });
     if (!refund || refund.providerRefundId) {
       return;
@@ -439,7 +520,11 @@ const markProviderCallFailed = async (
 
     const failed = await tx.refund.updateMany({
       where: { id: refundId, status: "APPROVED", providerRefundId: null },
-      data: { status: "FAILED", failureReason: message.slice(0, 1000), providerStatus: "api_error" },
+      data: {
+        status: "FAILED",
+        failureReason: message.slice(0, 1000),
+        providerStatus: "api_error",
+      },
     });
     if (failed.count !== 1) {
       return;
@@ -450,7 +535,11 @@ const markProviderCallFailed = async (
       action: "REFUND_PROVIDER_REQUEST_FAILED",
       entityType: "Refund",
       entityId: refundId,
-      metadata: { paymentId: refund.paymentId, invoiceId: refund.invoiceId, reason: message.slice(0, 500) },
+      metadata: {
+        paymentId: refund.paymentId,
+        invoiceId: refund.invoiceId,
+        reason: message.slice(0, 500),
+      },
       ...context,
     });
     await tx.notification.create({
@@ -458,8 +547,13 @@ const markProviderCallFailed = async (
         userId: refund.requestedById,
         type: "REFUND_PROCESSING_FAILED",
         title: "Refund processing failed",
-        message: "The refund could not be submitted to the payment provider and will be reviewed again.",
-        metadata: { refundId, paymentId: refund.paymentId, invoiceId: refund.invoiceId },
+        message:
+          "The refund could not be submitted to the payment provider and will be reviewed again.",
+        metadata: {
+          refundId,
+          paymentId: refund.paymentId,
+          invoiceId: refund.invoiceId,
+        },
       },
     });
   });
@@ -487,14 +581,35 @@ const persistProviderRefund = async (
     if (!existing) {
       throw new AppError(404, "Refund request not found");
     }
-    if (existing.providerRefundId && existing.providerRefundId !== providerRefund.id) {
-      throw new AppError(409, "Refund request is already linked to a different Stripe refund");
+    if (
+      existing.providerRefundId &&
+      existing.providerRefundId !== providerRefund.id
+    ) {
+      throw new AppError(
+        409,
+        "Refund request is already linked to a different Stripe refund",
+      );
     }
 
-    const nextStatus = mapStripeRefundStatus(providerRefund.status ?? "pending");
+    const nextStatus = mapStripeRefundStatus(
+      providerRefund.status ?? "pending",
+    );
+    if (!canApplyProviderRefundStatus(existing.status, nextStatus)) {
+      return tx.refund.findUniqueOrThrow({
+        where: { id: refundId },
+        select: refundSelect,
+      });
+    }
     const terminal = ["SUCCEEDED", "FAILED", "CANCELLED"].includes(nextStatus);
-    await tx.refund.update({
-      where: { id: refundId },
+    const claimed = await tx.refund.updateMany({
+      where: {
+        id: refundId,
+        status: existing.status,
+        OR: [
+          { providerRefundId: null },
+          { providerRefundId: providerRefund.id },
+        ],
+      },
       data: {
         status: nextStatus,
         providerRefundId: providerRefund.id,
@@ -503,8 +618,17 @@ const persistProviderRefund = async (
         completedAt: terminal ? new Date() : null,
       },
     });
+    if (claimed.count !== 1) {
+      return tx.refund.findUniqueOrThrow({
+        where: { id: refundId },
+        select: refundSelect,
+      });
+    }
 
-    const reconciliation = await reconcilePaymentRefundStatus(tx, existing.paymentId);
+    const reconciliation = await reconcilePaymentRefundStatus(
+      tx,
+      existing.paymentId,
+    );
     const auditAction =
       nextStatus === "SUCCEEDED"
         ? "REFUND_SUCCEEDED"
@@ -534,14 +658,22 @@ const persistProviderRefund = async (
             type: "REFUND_SUCCEEDED",
             title: "Refund completed",
             message: `Your refund for ${existing.invoice.invoiceNumber} has completed successfully.`,
-            metadata: { refundId, paymentId: existing.paymentId, invoiceId: existing.invoiceId },
+            metadata: {
+              refundId,
+              paymentId: existing.paymentId,
+              invoiceId: existing.invoiceId,
+            },
           },
           {
             userId: existing.invoice.supplierId,
             type: "REFUND_SUCCEEDED",
             title: "Payment refunded",
             message: `A refund for ${existing.invoice.invoiceNumber} has completed.`,
-            metadata: { refundId, paymentId: existing.paymentId, invoiceId: existing.invoiceId },
+            metadata: {
+              refundId,
+              paymentId: existing.paymentId,
+              invoiceId: existing.invoiceId,
+            },
           },
         ],
       });
@@ -552,12 +684,19 @@ const persistProviderRefund = async (
           type: "REFUND_FAILED",
           title: "Refund could not be completed",
           message: `The refund for ${existing.invoice.invoiceNumber} could not be completed.`,
-          metadata: { refundId, paymentId: existing.paymentId, invoiceId: existing.invoiceId },
+          metadata: {
+            refundId,
+            paymentId: existing.paymentId,
+            invoiceId: existing.invoiceId,
+          },
         },
       });
     }
 
-    return tx.refund.findUniqueOrThrow({ where: { id: refundId }, select: refundSelect });
+    return tx.refund.findUniqueOrThrow({
+      where: { id: refundId },
+      select: refundSelect,
+    });
   });
 };
 
@@ -568,15 +707,28 @@ const submitToStripe = async (
   retry: boolean,
   context: AuditContext,
 ) => {
-  const prepared = await prepareProviderRefund(adminId, refundId, note, retry, context);
+  const prepared = await prepareProviderRefund(
+    adminId,
+    refundId,
+    note,
+    retry,
+    context,
+  );
   const stripe = getStripeClient();
+  const paymentIntentId = prepared.payment.providerPaymentIntentId;
+  if (!paymentIntentId) {
+    throw new AppError(409, "Stripe PaymentIntent is missing for this payment");
+  }
 
   let providerRefund: Stripe.Refund;
   try {
     providerRefund = await stripe.refunds.create(
       {
-        payment_intent: prepared.payment.providerPaymentIntentId!,
-        amount: toStripeMinorUnits(prepared.amount.toString(), prepared.currency),
+        payment_intent: paymentIntentId,
+        amount: toStripeMinorUnits(
+          prepared.amount.toString(),
+          prepared.currency,
+        ),
         reason: "requested_by_customer",
         metadata: {
           refundRequestId: prepared.id,
@@ -588,7 +740,8 @@ const submitToStripe = async (
       { idempotencyKey: prepared.idempotencyKey },
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Stripe refund request failed";
+    const message =
+      error instanceof Error ? error.message : "Stripe refund request failed";
     await markProviderCallFailed(refundId, adminId, message, context);
     throw new AppError(502, "Unable to submit refund to Stripe");
   }
@@ -603,11 +756,8 @@ const approve = (
   context: AuditContext,
 ) => submitToStripe(adminId, refundId, note, false, context);
 
-const retry = (
-  adminId: string,
-  refundId: string,
-  context: AuditContext,
-) => submitToStripe(adminId, refundId, undefined, true, context);
+const retry = (adminId: string, refundId: string, context: AuditContext) =>
+  submitToStripe(adminId, refundId, undefined, true, context);
 
 export const RefundService = {
   requestRefund,

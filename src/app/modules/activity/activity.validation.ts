@@ -14,10 +14,13 @@ const baseAuditQuerySchema = z.object({
 const validDateRange = (value: { from?: Date; to?: Date }) =>
   !value.from || !value.to || value.from <= value.to;
 
-export const myActivityQuerySchema = baseAuditQuerySchema.refine(validDateRange, {
-  message: "from must be earlier than or equal to to",
-  path: ["from"],
-});
+export const myActivityQuerySchema = baseAuditQuerySchema.refine(
+  validDateRange,
+  {
+    message: "from must be earlier than or equal to to",
+    path: ["from"],
+  },
+);
 
 export const adminAuditQuerySchema = baseAuditQuerySchema
   .extend({ actorId: z.uuid().optional() })

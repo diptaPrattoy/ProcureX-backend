@@ -1,6 +1,6 @@
 import { prisma } from "../../../lib/prisma.js";
 import { AppError } from "../../errors/AppError.js";
-import { AuditService, type AuditContext } from "../audit/audit.service.js";
+import { type AuditContext, AuditService } from "../audit/audit.service.js";
 import type { UpdateBuyerProfileInput } from "./buyer.validation.js";
 
 const buyerProfileSelect = {
@@ -75,7 +75,11 @@ const updateMyProfile = async (
       throw new AppError(404, "Buyer profile not found");
     }
 
-    if (firstName !== undefined || lastName !== undefined || phone !== undefined) {
+    if (
+      firstName !== undefined ||
+      lastName !== undefined ||
+      phone !== undefined
+    ) {
       await tx.user.update({
         where: { id: userId },
         data: {

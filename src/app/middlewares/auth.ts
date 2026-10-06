@@ -2,8 +2,8 @@ import type { RequestHandler } from "express";
 import type { UserRole } from "../../generated/prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../errors/AppError.js";
-import { verifyAccessToken } from "../utils/token.js";
 import { catchAsync } from "../utils/catchAsync.js";
+import { verifyAccessToken } from "../utils/token.js";
 
 const readBearerToken = (authorizationHeader?: string): string => {
   if (!authorizationHeader) {
@@ -19,41 +19,43 @@ const readBearerToken = (authorizationHeader?: string): string => {
   return token;
 };
 
-export const requireAuth: RequestHandler = catchAsync(async (req, _res, next) => {
-  const token = readBearerToken(req.headers.authorization);
-  const principal = await verifyAccessToken(token);
+export const requireAuth: RequestHandler = catchAsync(
+  async (req, _res, next) => {
+    const token = readBearerToken(req.headers.authorization);
+    const principal = await verifyAccessToken(token);
 
-  const user = await prisma.user.findUnique({
-    where: { id: principal.sub },
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      status: true,
-      deletedAt: true,
-    },
-  });
+    const user = await prisma.user.findUnique({
+      where: { id: principal.sub },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        deletedAt: true,
+      },
+    });
 
-  if (!user || user.deletedAt) {
-    throw new AppError(401, "Authentication required");
-  }
+    if (!user || user.deletedAt) {
+      throw new AppError(401, "Authentication required");
+    }
 
-  if (user.status !== "ACTIVE") {
-    throw new AppError(403, "This account is not active");
-  }
+    if (user.status !== "ACTIVE") {
+      throw new AppError(403, "This account is not active");
+    }
 
-  if (user.email !== principal.email || user.role !== principal.role) {
-    throw new AppError(401, "Access token no longer matches this account");
-  }
+    if (user.email !== principal.email || user.role !== principal.role) {
+      throw new AppError(401, "Access token no longer matches this account");
+    }
 
-  req.authUser = {
-    id: user.id,
-    email: user.email,
-    role: user.role,
-  };
+    req.authUser = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
 
-  next();
-});
+    next();
+  },
+);
 
 export const requireRoles = (...roles: UserRole[]): RequestHandler => {
   return (req, _res, next) => {
@@ -63,7 +65,9 @@ export const requireRoles = (...roles: UserRole[]): RequestHandler => {
     }
 
     if (!roles.includes(req.authUser.role)) {
-      next(new AppError(403, "You do not have permission to perform this action"));
+      next(
+        new AppError(403, "You do not have permission to perform this action"),
+      );
       return;
     }
 

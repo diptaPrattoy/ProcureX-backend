@@ -1,5 +1,5 @@
-import { env } from "../../config/env.js";
 import { prisma } from "../../../lib/prisma.js";
+import { env } from "../../config/env.js";
 import { CacheService } from "../cache/cache.service.js";
 
 export const HealthService = {

@@ -14,7 +14,9 @@ const accessTokenPayloadSchema = z.object({
 
 export type AccessTokenPrincipal = z.infer<typeof accessTokenPayloadSchema>;
 
-export const signAccessToken = async (principal: AccessTokenPrincipal): Promise<string> => {
+export const signAccessToken = async (
+  principal: AccessTokenPrincipal,
+): Promise<string> => {
   const issuedAt = Math.floor(Date.now() / 1000);
   const expiresAt = issuedAt + env.JWT_ACCESS_TTL_MINUTES * 60;
 
@@ -31,7 +33,9 @@ export const signAccessToken = async (principal: AccessTokenPrincipal): Promise<
     .sign(jwtSecret);
 };
 
-export const verifyAccessToken = async (token: string): Promise<AccessTokenPrincipal> => {
+export const verifyAccessToken = async (
+  token: string,
+): Promise<AccessTokenPrincipal> => {
   try {
     const { payload } = await jwtVerify(token, jwtSecret, {
       algorithms: ["HS256"],

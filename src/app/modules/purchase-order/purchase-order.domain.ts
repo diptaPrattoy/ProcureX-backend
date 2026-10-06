@@ -11,7 +11,11 @@ export type PurchaseOrderLifecycleStatus =
   | "CANCELLED";
 
 export type PurchaseOrderTransitionActor = "BUYER" | "SUPPLIER";
-export type PurchaseOrderTransitionAction = "ACCEPT" | "REJECT" | "START_FULFILLMENT" | "CANCEL";
+export type PurchaseOrderTransitionAction =
+  | "ACCEPT"
+  | "REJECT"
+  | "START_FULFILLMENT"
+  | "CANCEL";
 
 export type PurchaseOrderTransitionState = {
   status: PurchaseOrderLifecycleStatus;
@@ -25,7 +29,10 @@ type TransitionRule = {
   to: PurchaseOrderLifecycleStatus;
 };
 
-const allowedTransitions: Record<PurchaseOrderTransitionAction, TransitionRule> = {
+const allowedTransitions: Record<
+  PurchaseOrderTransitionAction,
+  TransitionRule
+> = {
   ACCEPT: { actor: "SUPPLIER", from: "ISSUED", to: "ACCEPTED" },
   REJECT: { actor: "SUPPLIER", from: "ISSUED", to: "REJECTED" },
   START_FULFILLMENT: { actor: "SUPPLIER", from: "ACCEPTED", to: "IN_PROGRESS" },
@@ -40,7 +47,10 @@ export const assertPurchaseOrderTransition = ({
   const rule = allowedTransitions[action];
 
   if (rule.actor !== actor) {
-    throw new AppError(403, `Only the ${rule.actor.toLowerCase()} can perform this action`);
+    throw new AppError(
+      403,
+      `Only the ${rule.actor.toLowerCase()} can perform this action`,
+    );
   }
   if (status !== rule.from) {
     throw new AppError(

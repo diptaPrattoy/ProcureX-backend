@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-const optionalText = (max: number) => z.string().trim().min(1).max(max).optional().nullable();
+const optionalText = (max: number) =>
+  z.string().trim().min(1).max(max).optional().nullable();
 
 export const updateSupplierProfileSchema = z
   .object({
@@ -66,8 +67,16 @@ export const supplierVerificationSchema = z
     }
   });
 
-export type UpdateSupplierProfileInput = z.infer<typeof updateSupplierProfileSchema>;
-export type SetSupplierCategoriesInput = z.infer<typeof setSupplierCategoriesSchema>;
+export type UpdateSupplierProfileInput = z.infer<
+  typeof updateSupplierProfileSchema
+>;
+export type SetSupplierCategoriesInput = z.infer<
+  typeof setSupplierCategoriesSchema
+>;
 export type SupplierListQuery = z.infer<typeof supplierListQuerySchema>;
-export type AdminSupplierListQuery = z.infer<typeof adminSupplierListQuerySchema>;
-export type SupplierVerificationInput = z.infer<typeof supplierVerificationSchema>;
+export type AdminSupplierListQuery = z.infer<
+  typeof adminSupplierListQuerySchema
+>;
+export type SupplierVerificationInput = z.infer<
+  typeof supplierVerificationSchema
+>;

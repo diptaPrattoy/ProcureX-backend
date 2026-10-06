@@ -31,14 +31,23 @@ router.post(
   AuthController.registerSupplier,
 );
 
-router.post("/login", authSensitiveRateLimiter, validateBody(loginSchema), AuthController.login);
+router.post(
+  "/login",
+  authSensitiveRateLimiter,
+  validateBody(loginSchema),
+  AuthController.login,
+);
 router.post(
   "/google",
   authSensitiveRateLimiter,
   validateBody(googleAuthSchema),
   AuthController.googleAuth,
 );
-router.post("/refresh", validateBody(refreshTokenSchema), AuthController.refresh);
+router.post(
+  "/refresh",
+  validateBody(refreshTokenSchema),
+  AuthController.refresh,
+);
 router.post("/logout", validateBody(logoutSchema), AuthController.logout);
 router.post(
   "/email/resend-verification",

@@ -10,7 +10,10 @@ const getAuditContext = (req: Request) => ({
 });
 
 const registerBuyer = catchAsync(async (req, res) => {
-  const result = await AuthService.registerBuyer(req.body, getAuditContext(req));
+  const result = await AuthService.registerBuyer(
+    req.body,
+    getAuditContext(req),
+  );
 
   sendResponse(res, {
     statusCode: 201,
@@ -20,11 +23,15 @@ const registerBuyer = catchAsync(async (req, res) => {
 });
 
 const registerSupplier = catchAsync(async (req, res) => {
-  const result = await AuthService.registerSupplier(req.body, getAuditContext(req));
+  const result = await AuthService.registerSupplier(
+    req.body,
+    getAuditContext(req),
+  );
 
   sendResponse(res, {
     statusCode: 201,
-    message: "Supplier account created successfully and is pending verification",
+    message:
+      "Supplier account created successfully and is pending verification",
     data: result,
   });
 });
@@ -74,7 +81,8 @@ const resendVerification = catchAsync(async (req, res) => {
 
   sendResponse(res, {
     statusCode: 200,
-    message: "If the account needs verification, a verification email has been sent",
+    message:
+      "If the account needs verification, a verification email has been sent",
     data: null,
   });
 });
@@ -94,7 +102,8 @@ const forgotPassword = catchAsync(async (req, res) => {
 
   sendResponse(res, {
     statusCode: 200,
-    message: "If the account can reset a password, reset instructions have been sent",
+    message:
+      "If the account can reset a password, reset instructions have been sent",
     data: null,
   });
 });

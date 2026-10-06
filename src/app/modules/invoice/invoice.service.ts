@@ -1,7 +1,7 @@
 import type { Prisma, UserRole } from "../../../generated/prisma/client.js";
 import { prisma } from "../../../lib/prisma.js";
 import { AppError } from "../../errors/AppError.js";
-import { AuditService, type AuditContext } from "../audit/audit.service.js";
+import { type AuditContext, AuditService } from "../audit/audit.service.js";
 import {
   assertInvoiceApprovalAllowed,
   assertInvoiceCancellationAllowed,
@@ -9,7 +9,10 @@ import {
   assertInvoiceReviewStartAllowed,
   calculateInvoice,
 } from "./invoice.domain.js";
-import type { CreateInvoiceInput, InvoiceListQuery } from "./invoice.validation.js";
+import type {
+  CreateInvoiceInput,
+  InvoiceListQuery,
+} from "./invoice.validation.js";
 
 const invoiceListSelect = {
   id: true,
@@ -81,16 +84,24 @@ const invoiceDetailSelect = {
 
 type ProcurementRole = Extract<UserRole, "BUYER" | "SUPPLIER">;
 
-const invoiceScope = (userId: string, role: ProcurementRole): Prisma.InvoiceWhereInput =>
+const invoiceScope = (
+  userId: string,
+  role: ProcurementRole,
+): Prisma.InvoiceWhereInput =>
   role === "BUYER" ? { buyerId: userId } : { supplierId: userId };
 
-const purchaseOrderScope = (userId: string, role: ProcurementRole): Prisma.PurchaseOrderWhereInput =>
+const purchaseOrderScope = (
+  userId: string,
+  role: ProcurementRole,
+): Prisma.PurchaseOrderWhereInput =>
   role === "BUYER" ? { buyerId: userId } : { supplierId: userId };
 
 const parseDueDate = (value: string) => {
   const dueDate = new Date(`${value}T00:00:00.000Z`);
   const now = new Date();
-  const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const todayUtc = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
   if (dueDate < todayUtc) {
     throw new AppError(400, "Invoice due date cannot be in the past");
   }
@@ -136,7 +147,10 @@ const create = async (
         select: { id: true },
       });
       if (duplicateInvoice) {
-        throw new AppError(409, "This invoice number has already been used by the supplier");
+        throw new AppError(
+          409,
+          "This invoice number has already been used by the supplier",
+        );
       }
 
       const poItemIds = purchaseOrder.items.map((item) => item.id);
@@ -159,13 +173,17 @@ const create = async (
       ]);
 
       const acceptedByItem = new Map(
-        acceptedRows.map((row) => [row.purchaseOrderItemId, Number(row._sum.quantityAccepted ?? 0)]),
+        acceptedRows.map((row) => [
+          row.purchaseOrderItemId,
+          Number(row._sum.quantityAccepted ?? 0),
+        ]),
       );
       const invoicedByItem = new Map<string, number>();
       for (const row of priorInvoiceRows) {
         invoicedByItem.set(
           row.purchaseOrderItemId,
-          (invoicedByItem.get(row.purchaseOrderItemId) ?? 0) + Number(row.quantity),
+          (invoicedByItem.get(row.purchaseOrderItemId) ?? 0) +
+            Number(row.quantity),
         );
       }
 
@@ -193,7 +211,10 @@ const create = async (
         data: { updatedAt: now },
       });
       if (lock.count !== 1) {
-        throw new AppError(409, "Purchase order changed while the invoice was being prepared; retry");
+        throw new AppError(
+          409,
+          "Purchase order changed while the invoice was being prepared; retry",
+        );
       }
 
       const invoice = await tx.invoice.create({
@@ -274,7 +295,11 @@ const buildInvoiceWhere = (
   if (query.search) {
     searchFilters.push(
       { invoiceNumber: { contains: query.search, mode: "insensitive" } },
-      { purchaseOrder: { poNumber: { contains: query.search, mode: "insensitive" } } },
+      {
+        purchaseOrder: {
+          poNumber: { contains: query.search, mode: "insensitive" },
+        },
+      },
     );
   }
 
@@ -286,9 +311,14 @@ const buildInvoiceWhere = (
   };
 };
 
-const paginate = async (where: Prisma.InvoiceWhereInput, query: InvoiceListQuery) => {
+const paginate = async (
+  where: Prisma.InvoiceWhereInput,
+  query: InvoiceListQuery,
+) => {
   const skip = (query.page - 1) * query.limit;
-  const orderBy = { [query.sortBy]: query.sortOrder } as Prisma.InvoiceOrderByWithRelationInput;
+  const orderBy = {
+    [query.sortBy]: query.sortOrder,
+  } as Prisma.InvoiceOrderByWithRelationInput;
   const [items, total] = await Promise.all([
     prisma.invoice.findMany({
       where,
@@ -311,8 +341,11 @@ const paginate = async (where: Prisma.InvoiceWhereInput, query: InvoiceListQuery
   };
 };
 
-const listMine = async (userId: string, role: ProcurementRole, query: InvoiceListQuery) =>
-  paginate(buildInvoiceWhere(userId, role, query), query);
+const listMine = async (
+  userId: string,
+  role: ProcurementRole,
+  query: InvoiceListQuery,
+) => paginate(buildInvoiceWhere(userId, role, query), query);
 
 const listByPurchaseOrder = async (
   userId: string,
@@ -327,10 +360,17 @@ const listByPurchaseOrder = async (
   if (!purchaseOrder) {
     throw new AppError(404, "Purchase order not found");
   }
-  return paginate(buildInvoiceWhere(userId, role, query, purchaseOrderId), query);
+  return paginate(
+    buildInvoiceWhere(userId, role, query, purchaseOrderId),
+    query,
+  );
 };
 
-const getById = async (userId: string, role: ProcurementRole, invoiceId: string) => {
+const getById = async (
+  userId: string,
+  role: ProcurementRole,
+  invoiceId: string,
+) => {
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, ...invoiceScope(userId, role) },
     select: invoiceDetailSelect,
@@ -341,8 +381,11 @@ const getById = async (userId: string, role: ProcurementRole, invoiceId: string)
   return invoice;
 };
 
-
-const startReview = async (buyerId: string, invoiceId: string, context: AuditContext) => {
+const startReview = async (
+  buyerId: string,
+  invoiceId: string,
+  context: AuditContext,
+) => {
   return prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findFirst({
       where: { id: invoiceId, buyerId },
@@ -408,7 +451,11 @@ const startReview = async (buyerId: string, invoiceId: string, context: AuditCon
   });
 };
 
-const approve = async (buyerId: string, invoiceId: string, context: AuditContext) => {
+const approve = async (
+  buyerId: string,
+  invoiceId: string,
+  context: AuditContext,
+) => {
   return prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findFirst({
       where: { id: invoiceId, buyerId },
@@ -551,7 +598,11 @@ const reject = async (
   });
 };
 
-const cancel = async (supplierId: string, invoiceId: string, context: AuditContext) => {
+const cancel = async (
+  supplierId: string,
+  invoiceId: string,
+  context: AuditContext,
+) => {
   return prisma.$transaction(async (tx) => {
     const invoice = await tx.invoice.findFirst({
       where: { id: invoiceId, supplierId },

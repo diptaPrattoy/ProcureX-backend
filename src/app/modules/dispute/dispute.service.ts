@@ -1,7 +1,7 @@
 import type { Prisma, UserRole } from "../../../generated/prisma/client.js";
 import { prisma } from "../../../lib/prisma.js";
 import { AppError } from "../../errors/AppError.js";
-import { AuditService, type AuditContext } from "../audit/audit.service.js";
+import { type AuditContext, AuditService } from "../audit/audit.service.js";
 import {
   ACTIVE_DISPUTE_STATUSES,
   assertDisputeCanBeFinalized,
@@ -9,7 +9,10 @@ import {
   assertInvoiceCanBeDisputed,
   assertPurchaseOrderCanBeDisputed,
 } from "./dispute.domain.js";
-import type { DisputeListQuery, OpenDisputeInput } from "./dispute.validation.js";
+import type {
+  DisputeListQuery,
+  OpenDisputeInput,
+} from "./dispute.validation.js";
 
 const disputeSelect = {
   id: true,
@@ -92,13 +95,18 @@ const createDispute = async (
       const active = await tx.dispute.findFirst({
         where: {
           status: { in: ACTIVE_DISPUTE_STATUSES },
-          ...(target.purchaseOrderId ? { purchaseOrderId: target.purchaseOrderId } : {}),
+          ...(target.purchaseOrderId
+            ? { purchaseOrderId: target.purchaseOrderId }
+            : {}),
           ...(target.invoiceId ? { invoiceId: target.invoiceId } : {}),
         },
         select: { id: true },
       });
       if (active) {
-        throw new AppError(409, "An active dispute already exists for this transaction");
+        throw new AppError(
+          409,
+          "An active dispute already exists for this transaction",
+        );
       }
 
       const targetMetadata = target.purchaseOrderId
@@ -163,17 +171,29 @@ const openForPurchaseOrder = async (
   const participantRole = assertParticipantRole(role);
   const purchaseOrder = await prisma.purchaseOrder.findUnique({
     where: { id: purchaseOrderId },
-    select: { id: true, poNumber: true, buyerId: true, supplierId: true, status: true },
+    select: {
+      id: true,
+      poNumber: true,
+      buyerId: true,
+      supplierId: true,
+      status: true,
+    },
   });
   if (!purchaseOrder) throw new AppError(404, "Purchase order not found");
 
-  const expectedActorId = participantRole === "BUYER" ? purchaseOrder.buyerId : purchaseOrder.supplierId;
+  const expectedActorId =
+    participantRole === "BUYER"
+      ? purchaseOrder.buyerId
+      : purchaseOrder.supplierId;
   if (expectedActorId !== actorId) {
     throw new AppError(404, "Purchase order not found");
   }
   assertPurchaseOrderCanBeDisputed(purchaseOrder.status);
 
-  const againstUserId = participantRole === "BUYER" ? purchaseOrder.supplierId : purchaseOrder.buyerId;
+  const againstUserId =
+    participantRole === "BUYER"
+      ? purchaseOrder.supplierId
+      : purchaseOrder.buyerId;
   return createDispute(
     actorId,
     againstUserId,
@@ -194,17 +214,25 @@ const openForInvoice = async (
   const participantRole = assertParticipantRole(role);
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
-    select: { id: true, invoiceNumber: true, buyerId: true, supplierId: true, status: true },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      buyerId: true,
+      supplierId: true,
+      status: true,
+    },
   });
   if (!invoice) throw new AppError(404, "Invoice not found");
 
-  const expectedActorId = participantRole === "BUYER" ? invoice.buyerId : invoice.supplierId;
+  const expectedActorId =
+    participantRole === "BUYER" ? invoice.buyerId : invoice.supplierId;
   if (expectedActorId !== actorId) {
     throw new AppError(404, "Invoice not found");
   }
   assertInvoiceCanBeDisputed(invoice.status);
 
-  const againstUserId = participantRole === "BUYER" ? invoice.supplierId : invoice.buyerId;
+  const againstUserId =
+    participantRole === "BUYER" ? invoice.supplierId : invoice.buyerId;
   return createDispute(
     actorId,
     againstUserId,
@@ -233,9 +261,22 @@ const listMine = async (userId: string, query: DisputeListQuery) => {
             {
               OR: [
                 { subject: { contains: query.search, mode: "insensitive" } },
-                { description: { contains: query.search, mode: "insensitive" } },
-                { purchaseOrder: { poNumber: { contains: query.search, mode: "insensitive" } } },
-                { invoice: { invoiceNumber: { contains: query.search, mode: "insensitive" } } },
+                {
+                  description: { contains: query.search, mode: "insensitive" },
+                },
+                {
+                  purchaseOrder: {
+                    poNumber: { contains: query.search, mode: "insensitive" },
+                  },
+                },
+                {
+                  invoice: {
+                    invoiceNumber: {
+                      contains: query.search,
+                      mode: "insensitive",
+                    },
+                  },
+                },
               ],
             },
           ],
@@ -268,7 +309,10 @@ const listMine = async (userId: string, query: DisputeListQuery) => {
 
 const getMineById = async (userId: string, disputeId: string) => {
   const dispute = await prisma.dispute.findFirst({
-    where: { id: disputeId, OR: [{ openedById: userId }, { againstUserId: userId }] },
+    where: {
+      id: disputeId,
+      OR: [{ openedById: userId }, { againstUserId: userId }],
+    },
     select: disputeSelect,
   });
   if (!dispute) throw new AppError(404, "Dispute not found");
@@ -291,10 +335,26 @@ const listAdmin = async (query: DisputeListQuery) => {
           OR: [
             { subject: { contains: query.search, mode: "insensitive" } },
             { description: { contains: query.search, mode: "insensitive" } },
-            { purchaseOrder: { poNumber: { contains: query.search, mode: "insensitive" } } },
-            { invoice: { invoiceNumber: { contains: query.search, mode: "insensitive" } } },
-            { openedBy: { email: { contains: query.search, mode: "insensitive" } } },
-            { againstUser: { email: { contains: query.search, mode: "insensitive" } } },
+            {
+              purchaseOrder: {
+                poNumber: { contains: query.search, mode: "insensitive" },
+              },
+            },
+            {
+              invoice: {
+                invoiceNumber: { contains: query.search, mode: "insensitive" },
+              },
+            },
+            {
+              openedBy: {
+                email: { contains: query.search, mode: "insensitive" },
+              },
+            },
+            {
+              againstUser: {
+                email: { contains: query.search, mode: "insensitive" },
+              },
+            },
           ],
         }
       : {}),
@@ -322,12 +382,19 @@ const listAdmin = async (query: DisputeListQuery) => {
 };
 
 const getAdminById = async (disputeId: string) => {
-  const dispute = await prisma.dispute.findUnique({ where: { id: disputeId }, select: disputeSelect });
+  const dispute = await prisma.dispute.findUnique({
+    where: { id: disputeId },
+    select: disputeSelect,
+  });
   if (!dispute) throw new AppError(404, "Dispute not found");
   return dispute;
 };
 
-const startReview = async (adminId: string, disputeId: string, context: AuditContext) => {
+const startReview = async (
+  adminId: string,
+  disputeId: string,
+  context: AuditContext,
+) => {
   return prisma.$transaction(async (tx) => {
     const dispute = await tx.dispute.findUnique({
       where: { id: disputeId },
@@ -362,7 +429,10 @@ const startReview = async (adminId: string, disputeId: string, context: AuditCon
       })),
     });
 
-    return tx.dispute.findUniqueOrThrow({ where: { id: disputeId }, select: disputeSelect });
+    return tx.dispute.findUniqueOrThrow({
+      where: { id: disputeId },
+      select: disputeSelect,
+    });
   });
 };
 
@@ -395,7 +465,8 @@ const finalize = async (
       throw new AppError(409, "Dispute state changed; refresh and try again");
     }
 
-    const action = targetStatus === "RESOLVED" ? "DISPUTE_RESOLVED" : "DISPUTE_REJECTED";
+    const action =
+      targetStatus === "RESOLVED" ? "DISPUTE_RESOLVED" : "DISPUTE_REJECTED";
     await AuditService.create(tx, {
       actorId: adminId,
       action,
@@ -409,13 +480,17 @@ const finalize = async (
       data: [dispute.openedById, dispute.againstUserId].map((userId) => ({
         userId,
         type: action,
-        title: targetStatus === "RESOLVED" ? "Dispute resolved" : "Dispute rejected",
+        title:
+          targetStatus === "RESOLVED" ? "Dispute resolved" : "Dispute rejected",
         message: resolution,
         metadata: { disputeId },
       })),
     });
 
-    return tx.dispute.findUniqueOrThrow({ where: { id: disputeId }, select: disputeSelect });
+    return tx.dispute.findUniqueOrThrow({
+      where: { id: disputeId },
+      select: disputeSelect,
+    });
   });
 };
 

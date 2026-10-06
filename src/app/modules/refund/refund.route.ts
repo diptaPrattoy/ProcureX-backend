@@ -2,7 +2,11 @@ import { Router } from "express";
 import { requireAuth, requireRoles } from "../../middlewares/auth.js";
 import { validateBody } from "../../middlewares/validateRequest.js";
 import { RefundController } from "./refund.controller.js";
-import { approveRefundSchema, rejectRefundSchema, requestRefundSchema } from "./refund.validation.js";
+import {
+  approveRefundSchema,
+  rejectRefundSchema,
+  requestRefundSchema,
+} from "./refund.validation.js";
 
 const paymentRefundRouter = Router();
 paymentRefundRouter.post(
@@ -14,13 +18,38 @@ paymentRefundRouter.post(
 );
 
 const refundRouter = Router();
-refundRouter.get("/", requireAuth, requireRoles("BUYER"), RefundController.listMine);
-refundRouter.get("/:refundId", requireAuth, requireRoles("BUYER"), RefundController.getMineById);
-refundRouter.post("/:refundId/cancel", requireAuth, requireRoles("BUYER"), RefundController.cancelMine);
+refundRouter.get(
+  "/",
+  requireAuth,
+  requireRoles("BUYER"),
+  RefundController.listMine,
+);
+refundRouter.get(
+  "/:refundId",
+  requireAuth,
+  requireRoles("BUYER"),
+  RefundController.getMineById,
+);
+refundRouter.post(
+  "/:refundId/cancel",
+  requireAuth,
+  requireRoles("BUYER"),
+  RefundController.cancelMine,
+);
 
 const adminRefundRouter = Router();
-adminRefundRouter.get("/", requireAuth, requireRoles("ADMIN"), RefundController.listAdmin);
-adminRefundRouter.get("/:refundId", requireAuth, requireRoles("ADMIN"), RefundController.getAdminById);
+adminRefundRouter.get(
+  "/",
+  requireAuth,
+  requireRoles("ADMIN"),
+  RefundController.listAdmin,
+);
+adminRefundRouter.get(
+  "/:refundId",
+  requireAuth,
+  requireRoles("ADMIN"),
+  RefundController.getAdminById,
+);
 adminRefundRouter.post(
   "/:refundId/approve",
   requireAuth,
@@ -35,7 +64,12 @@ adminRefundRouter.post(
   validateBody(rejectRefundSchema),
   RefundController.reject,
 );
-adminRefundRouter.post("/:refundId/retry", requireAuth, requireRoles("ADMIN"), RefundController.retry);
+adminRefundRouter.post(
+  "/:refundId/retry",
+  requireAuth,
+  requireRoles("ADMIN"),
+  RefundController.retry,
+);
 
 export const PaymentRefundRoutes = paymentRefundRouter;
 export const RefundRoutes = refundRouter;

@@ -1,16 +1,16 @@
 import type { Prisma } from "../../../generated/prisma/client";
 import { prisma } from "../../../lib/prisma.js";
 import { AppError } from "../../errors/AppError.js";
-import { hashPassword, verifyPassword } from "../../utils/password.js";
 import { hashOneTimeToken, issueOneTimeToken } from "../../utils/authToken.js";
 import { verifyGoogleCredential } from "../../utils/googleAuth.js";
+import { hashPassword, verifyPassword } from "../../utils/password.js";
 import {
   generateRefreshToken,
   getRefreshTokenExpiry,
   hashRefreshToken,
   signAccessToken,
 } from "../../utils/token.js";
-import { AuditService, type AuditContext } from "../audit/audit.service.js";
+import { type AuditContext, AuditService } from "../audit/audit.service.js";
 import { EmailService } from "../email/email.service.js";
 import type {
   EmailOnlyInput,
@@ -28,7 +28,9 @@ const userWithProfiles = {
   supplierProfile: true,
 } satisfies Prisma.UserInclude;
 
-type UserWithProfiles = Prisma.UserGetPayload<{ include: typeof userWithProfiles }>;
+type UserWithProfiles = Prisma.UserGetPayload<{
+  include: typeof userWithProfiles;
+}>;
 
 const toPublicUser = (user: UserWithProfiles) => ({
   id: user.id,
@@ -91,7 +93,10 @@ const ensurePublicRegistrationEmailAvailable = async (
   }
 };
 
-const deliverVerificationEmail = async (user: UserWithProfiles, token: string) => {
+const deliverVerificationEmail = async (
+  user: UserWithProfiles,
+  token: string,
+) => {
   await EmailService.sendEmailVerification({
     email: user.email,
     firstName: user.firstName,
@@ -99,7 +104,10 @@ const deliverVerificationEmail = async (user: UserWithProfiles, token: string) =
   });
 };
 
-const registerBuyer = async (input: RegisterBuyerInput, context: AuditContext) => {
+const registerBuyer = async (
+  input: RegisterBuyerInput,
+  context: AuditContext,
+) => {
   const passwordHash = await hashPassword(input.password);
   const refreshToken = generateRefreshToken();
   let verificationToken = "";
@@ -128,7 +136,11 @@ const registerBuyer = async (input: RegisterBuyerInput, context: AuditContext) =
     });
 
     await createRefreshTokenRecord(tx, createdUser.id, refreshToken);
-    verificationToken = await issueOneTimeToken(tx, createdUser.id, "EMAIL_VERIFICATION");
+    verificationToken = await issueOneTimeToken(
+      tx,
+      createdUser.id,
+      "EMAIL_VERIFICATION",
+    );
 
     await AuditService.create(tx, {
       actorId: createdUser.id,
@@ -149,7 +161,10 @@ const registerBuyer = async (input: RegisterBuyerInput, context: AuditContext) =
   return buildSession(user, refreshToken);
 };
 
-const registerSupplier = async (input: RegisterSupplierInput, context: AuditContext) => {
+const registerSupplier = async (
+  input: RegisterSupplierInput,
+  context: AuditContext,
+) => {
   const passwordHash = await hashPassword(input.password);
   const refreshToken = generateRefreshToken();
   let verificationToken = "";
@@ -178,7 +193,11 @@ const registerSupplier = async (input: RegisterSupplierInput, context: AuditCont
     });
 
     await createRefreshTokenRecord(tx, createdUser.id, refreshToken);
-    verificationToken = await issueOneTimeToken(tx, createdUser.id, "EMAIL_VERIFICATION");
+    verificationToken = await issueOneTimeToken(
+      tx,
+      createdUser.id,
+      "EMAIL_VERIFICATION",
+    );
 
     await AuditService.create(tx, {
       actorId: createdUser.id,
@@ -210,7 +229,10 @@ const login = async (input: LoginInput, context: AuditContext) => {
     throw new AppError(401, "Invalid email or password");
   }
 
-  const passwordMatches = await verifyPassword(input.password, user.passwordHash);
+  const passwordMatches = await verifyPassword(
+    input.password,
+    user.passwordHash,
+  );
 
   if (!passwordMatches) {
     throw new AppError(401, "Invalid email or password");
@@ -263,8 +285,15 @@ const googleAuth = async (input: GoogleAuthInput, context: AuditContext) => {
       include: userWithProfiles,
     });
 
-    if (accountByGoogleId && accountByEmail && accountByGoogleId.id !== accountByEmail.id) {
-      throw new AppError(409, "Google identity conflicts with an existing account");
+    if (
+      accountByGoogleId &&
+      accountByEmail &&
+      accountByGoogleId.id !== accountByEmail.id
+    ) {
+      throw new AppError(
+        409,
+        "Google identity conflicts with an existing account",
+      );
     }
 
     let existing = accountByGoogleId ?? accountByEmail;
@@ -275,7 +304,10 @@ const googleAuth = async (input: GoogleAuthInput, context: AuditContext) => {
       }
 
       if (existing.googleId && existing.googleId !== googleIdentity.googleId) {
-        throw new AppError(409, "This email is linked to a different Google account");
+        throw new AppError(
+          409,
+          "This email is linked to a different Google account",
+        );
       }
 
       existing = await tx.user.update({
@@ -364,7 +396,11 @@ const refresh = async (input: RefreshTokenInput) => {
     },
   });
 
-  if (!existingToken || existingToken.revokedAt || existingToken.expiresAt <= new Date()) {
+  if (
+    !existingToken ||
+    existingToken.revokedAt ||
+    existingToken.expiresAt <= new Date()
+  ) {
     throw new AppError(401, "Invalid or expired refresh token");
   }
 
@@ -419,7 +455,12 @@ const resendVerification = async (input: EmailOnlyInput) => {
     include: userWithProfiles,
   });
 
-  if (!user || user.deletedAt || user.status !== "ACTIVE" || user.emailVerifiedAt) {
+  if (
+    !user ||
+    user.deletedAt ||
+    user.status !== "ACTIVE" ||
+    user.emailVerifiedAt
+  ) {
     return null;
   }
 
@@ -438,8 +479,7 @@ const verifyEmail = async (input: VerifyEmailInput, context: AuditContext) => {
   });
 
   if (
-    !token ||
-    token.type !== "EMAIL_VERIFICATION" ||
+    token?.type !== "EMAIL_VERIFICATION" ||
     token.consumedAt ||
     token.expiresAt <= new Date()
   ) {
@@ -486,11 +526,18 @@ const forgotPassword = async (input: EmailOnlyInput) => {
   });
 
   // Deliberately return the same response for unknown, disabled, deleted, and Google-only accounts.
-  if (!user || user.deletedAt || user.status !== "ACTIVE" || !user.passwordHash) {
+  if (
+    !user ||
+    user.deletedAt ||
+    user.status !== "ACTIVE" ||
+    !user.passwordHash
+  ) {
     return null;
   }
 
-  const token = await prisma.$transaction((tx) => issueOneTimeToken(tx, user.id, "PASSWORD_RESET"));
+  const token = await prisma.$transaction((tx) =>
+    issueOneTimeToken(tx, user.id, "PASSWORD_RESET"),
+  );
   await EmailService.sendPasswordReset({
     email: user.email,
     firstName: user.firstName,
@@ -500,7 +547,10 @@ const forgotPassword = async (input: EmailOnlyInput) => {
   return null;
 };
 
-const resetPassword = async (input: ResetPasswordInput, context: AuditContext) => {
+const resetPassword = async (
+  input: ResetPasswordInput,
+  context: AuditContext,
+) => {
   const tokenHash = hashOneTimeToken(input.token);
   const token = await prisma.authToken.findUnique({
     where: { tokenHash },
@@ -508,8 +558,7 @@ const resetPassword = async (input: ResetPasswordInput, context: AuditContext) =
   });
 
   if (
-    !token ||
-    token.type !== "PASSWORD_RESET" ||
+    token?.type !== "PASSWORD_RESET" ||
     token.consumedAt ||
     token.expiresAt <= new Date()
   ) {

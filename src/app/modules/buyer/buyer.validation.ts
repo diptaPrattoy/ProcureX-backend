@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-const optionalText = (max: number) => z.string().trim().min(1).max(max).optional().nullable();
+const optionalText = (max: number) =>
+  z.string().trim().min(1).max(max).optional().nullable();
 
 export const updateBuyerProfileSchema = z
   .object({

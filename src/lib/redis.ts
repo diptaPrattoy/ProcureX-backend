@@ -1,7 +1,9 @@
 import { Redis } from "@upstash/redis";
 import { env } from "../app/config/env.js";
 
-const configured = Boolean(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN);
+const configured = Boolean(
+  env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN,
+);
 
 const redisConfig = configured
   ? {

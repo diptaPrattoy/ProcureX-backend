@@ -2007,15 +2007,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/invoices/{{invoiceId}}/payments/checkout",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "invoices",
-                "{{invoiceId}}",
-                "payments",
-                "checkout"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices", "{{invoiceId}}", "payments", "checkout"]
             },
             "description": "Creates the Stripe Checkout session for the approved canonical invoice. Repeated calls reuse the same active payment/session instead of creating duplicate attempts."
           },
@@ -2048,12 +2041,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/payments?page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "payments"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["payments"],
               "query": [
                 {
                   "key": "page",
@@ -2080,13 +2069,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/payments/{{paymentId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "payments",
-                "{{paymentId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "{{paymentId}}"]
             }
           }
         },
@@ -2150,14 +2134,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/payments/{{paymentId}}/refunds",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "payments",
-                "{{paymentId}}",
-                "refunds"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "{{paymentId}}", "refunds"]
             },
             "description": "Requests the remaining refundable balance. Omitting amount means full remaining refund."
           },
@@ -2188,12 +2166,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/refunds?page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "refunds"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["refunds"],
               "query": [
                 {
                   "key": "page",
@@ -2220,13 +2194,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/refunds?status=REQUESTED&page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "refunds"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "refunds"],
               "query": [
                 {
                   "key": "status",
@@ -2271,15 +2240,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/refunds/{{refundId}}/approve",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "refunds",
-                "{{refundId}}",
-                "approve"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "refunds", "{{refundId}}", "approve"]
             },
             "description": "Creates a Stripe refund using the original PaymentIntent and the persisted idempotency key."
           }
@@ -2297,14 +2259,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/refunds/{{refundId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "refunds",
-                "{{refundId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "refunds", "{{refundId}}"]
             }
           }
         },
@@ -2420,14 +2376,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/invoices/{{invoiceId}}/disputes",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "invoices",
-                "{{invoiceId}}",
-                "disputes"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices", "{{invoiceId}}", "disputes"]
             },
             "body": {
               "mode": "raw",
@@ -2467,12 +2417,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/disputes?page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "disputes"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["disputes"],
               "query": [
                 {
                   "key": "page",
@@ -2499,13 +2445,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/disputes?status=OPEN&page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "disputes"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "disputes"],
               "query": [
                 {
                   "key": "status",
@@ -2536,15 +2477,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/disputes/{{disputeId}}/review",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "disputes",
-                "{{disputeId}}",
-                "review"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "disputes", "{{disputeId}}", "review"]
             }
           }
         },
@@ -2566,15 +2500,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/disputes/{{disputeId}}/resolve",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "disputes",
-                "{{disputeId}}",
-                "resolve"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "disputes", "{{disputeId}}", "resolve"]
             },
             "body": {
               "mode": "raw",
@@ -2707,12 +2634,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/notifications?read=ALL&page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "notifications?read=ALL&page=1&limit=20"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications?read=ALL&page=1&limit=20"]
             },
             "description": "Lists the canonical buyer notifications."
           },
@@ -2744,13 +2667,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/notifications/unread-count",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "notifications",
-                "unread-count"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "unread-count"]
             },
             "description": "Returns the buyer unread notification count."
           }
@@ -2768,14 +2686,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/notifications/{{notificationId}}/read",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "notifications",
-                "{{notificationId}}",
-                "read"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "{{notificationId}}", "read"]
             },
             "description": "Marks one owned notification as read."
           }
@@ -2793,13 +2705,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/notifications/read-all",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "notifications",
-                "read-all"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "read-all"]
             },
             "description": "Marks all buyer notifications as read."
           }
@@ -2817,13 +2724,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/activity/me?page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "activity",
-                "me?page=1&limit=20"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["activity", "me?page=1&limit=20"]
             },
             "description": "Lists audit activity where the canonical buyer is the actor."
           }
@@ -2846,13 +2748,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/audit-logs?page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "audit-logs?page=1&limit=20"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "audit-logs?page=1&limit=20"]
             },
             "description": "Lists system audit logs for administrators."
           },
@@ -2884,14 +2781,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/audit-logs/{{auditLogId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "audit-logs",
-                "{{auditLogId}}"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "audit-logs", "{{auditLogId}}"]
             },
             "description": "Retrieves one audit log with actor details."
           }
@@ -2914,14 +2805,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/dashboard/overview?days=30",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "dashboard",
-                "overview"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "dashboard", "overview"],
               "query": [
                 {
                   "key": "days",
@@ -2945,14 +2830,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/dashboard/financials?days=30",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "dashboard",
-                "financials"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "dashboard", "financials"],
               "query": [
                 {
                   "key": "days",
@@ -2976,14 +2855,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/dashboard/trends?days=30",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "dashboard",
-                "trends"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "dashboard", "trends"],
               "query": [
                 {
                   "key": "days",

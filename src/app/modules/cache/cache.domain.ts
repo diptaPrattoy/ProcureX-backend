@@ -19,7 +19,8 @@ const normalize = (value: unknown): unknown => {
   return value;
 };
 
-export const stableSerialize = (value: unknown) => JSON.stringify(normalize(value));
+export const stableSerialize = (value: unknown) =>
+  JSON.stringify(normalize(value));
 
 export const buildCacheKey = (namespace: string, payload?: unknown) => {
   const cleanNamespace = namespace.trim().replace(/\s+/g, "-").toLowerCase();

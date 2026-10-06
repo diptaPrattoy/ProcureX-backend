@@ -3,8 +3,8 @@ import type Stripe from "stripe";
 import { env } from "../../config/env.js";
 import { AppError } from "../../errors/AppError.js";
 import { catchAsync } from "../../utils/catchAsync.js";
-import { getStripeClient } from "./stripe.client.js";
 import { PaymentWebhookService } from "./payment.webhook.service.js";
+import { getStripeClient } from "./stripe.client.js";
 
 const handleStripeWebhook = catchAsync(async (req: Request, res: Response) => {
   if (!env.STRIPE_WEBHOOK_SECRET) {

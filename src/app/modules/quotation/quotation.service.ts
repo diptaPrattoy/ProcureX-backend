@@ -1,7 +1,8 @@
 import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../../lib/prisma.js";
 import { AppError } from "../../errors/AppError.js";
-import { AuditService, type AuditContext } from "../audit/audit.service.js";
+import { type AuditContext, AuditService } from "../audit/audit.service.js";
+import { toStripeMinorUnits } from "../payment/payment.domain.js";
 import {
   assertQuotationValidityWindow,
   calculateQuotationPricing,
@@ -11,6 +12,9 @@ import type {
   SubmitQuotationInput,
   UpdateQuotationInput,
 } from "./quotation.validation.js";
+
+const nextVersionTimestamp = (current: Date, now = new Date()) =>
+  new Date(Math.max(now.getTime(), current.getTime() + 1));
 
 const quotationDetailSelect = {
   id: true,
@@ -85,6 +89,7 @@ const quotationListSelect = {
       title: true,
       status: true,
       submissionDeadline: true,
+      updatedAt: true,
       buyer: {
         select: { buyerProfile: { select: { companyName: true } } },
       },
@@ -99,14 +104,21 @@ const toDateOnly = (value: string) => new Date(`${value}T00:00:00.000Z`);
 
 const assertOpenRfq = (rfq: { status: string; submissionDeadline: Date }) => {
   if (rfq.status !== "OPEN") {
-    throw new AppError(409, "Quotations can only be submitted or changed while the RFQ is open");
+    throw new AppError(
+      409,
+      "Quotations can only be submitted or changed while the RFQ is open",
+    );
   }
   if (rfq.submissionDeadline <= new Date()) {
     throw new AppError(409, "The RFQ submission deadline has passed");
   }
 };
 
-const assertSupplierEligible = async (tx: QuotationDb, supplierId: string, categoryId: string) => {
+const assertSupplierEligible = async (
+  tx: QuotationDb,
+  supplierId: string,
+  categoryId: string,
+) => {
   const supplier = await tx.user.findFirst({
     where: {
       id: supplierId,
@@ -131,7 +143,10 @@ const assertSupplierEligible = async (tx: QuotationDb, supplierId: string, categ
   });
 
   if (!supplier?.supplierProfile || supplier.supplierProfile.deletedAt) {
-    throw new AppError(403, "Complete your supplier profile before submitting quotations");
+    throw new AppError(
+      403,
+      "Complete your supplier profile before submitting quotations",
+    );
   }
   if (!supplier.emailVerifiedAt) {
     throw new AppError(403, "Verify your email before submitting quotations");
@@ -140,7 +155,10 @@ const assertSupplierEligible = async (tx: QuotationDb, supplierId: string, categ
     throw new AppError(403, "Only verified suppliers can submit quotations");
   }
   if (supplier.supplierProfile.categories.length === 0) {
-    throw new AppError(403, "This RFQ is outside your verified procurement categories");
+    throw new AppError(
+      403,
+      "This RFQ is outside your verified procurement categories",
+    );
   }
 };
 
@@ -153,6 +171,7 @@ const loadQuoteableRfq = async (tx: QuotationDb, rfqId: string) => {
       currency: true,
       status: true,
       submissionDeadline: true,
+      updatedAt: true,
       items: {
         select: { id: true, quantity: true },
         orderBy: { createdAt: "asc" },
@@ -178,7 +197,10 @@ const submit = async (
     await assertSupplierEligible(tx, supplierId, rfq.categoryId);
 
     if (input.currency !== rfq.currency) {
-      throw new AppError(400, `Quotation currency must match the RFQ currency (${rfq.currency})`);
+      throw new AppError(
+        400,
+        `Quotation currency must match the RFQ currency (${rfq.currency})`,
+      );
     }
 
     const existing = await tx.quotation.findUnique({
@@ -186,17 +208,40 @@ const submit = async (
       select: { id: true, status: true },
     });
     if (existing) {
-      throw new AppError(409, "You have already submitted a quotation for this RFQ");
+      throw new AppError(
+        409,
+        "You have already submitted a quotation for this RFQ",
+      );
     }
 
     const validUntil = toDateOnly(input.validUntil);
     assertQuotationValidityWindow(validUntil, rfq.submissionDeadline);
 
     const pricing = calculateQuotationPricing(
-      rfq.items.map((item) => ({ id: item.id, quantity: Number(item.quantity) })),
+      rfq.items.map((item) => ({
+        id: item.id,
+        quantity: Number(item.quantity),
+      })),
       input.items,
       input.taxAmount,
     );
+    toStripeMinorUnits(pricing.totalAmount, input.currency);
+
+    const transitionAt = new Date();
+    const rfqVersionAt = nextVersionTimestamp(rfq.updatedAt, transitionAt);
+    const claimedRfq = await tx.rfq.updateMany({
+      where: {
+        id: rfq.id,
+        status: "OPEN",
+        deletedAt: null,
+        submissionDeadline: { gt: transitionAt },
+        updatedAt: rfq.updatedAt,
+      },
+      data: { updatedAt: rfqVersionAt },
+    });
+    if (claimedRfq.count !== 1) {
+      throw new AppError(409, "RFQ state changed; retry the request");
+    }
 
     const quotation = await tx.quotation.create({
       data: {
@@ -256,7 +301,9 @@ const listMine = async (supplierId: string, query: MyQuotationListQuery) => {
   };
 
   const skip = (query.page - 1) * query.limit;
-  const orderBy = { [query.sortBy]: query.sortOrder } as Prisma.QuotationOrderByWithRelationInput;
+  const orderBy = {
+    [query.sortBy]: query.sortOrder,
+  } as Prisma.QuotationOrderByWithRelationInput;
 
   const [items, total] = await Promise.all([
     prisma.quotation.findMany({
@@ -304,6 +351,7 @@ const update = async (
       select: {
         id: true,
         status: true,
+        updatedAt: true,
         currency: true,
         taxAmount: true,
         deliveryDays: true,
@@ -317,6 +365,7 @@ const update = async (
             currency: true,
             status: true,
             submissionDeadline: true,
+            updatedAt: true,
             items: {
               select: { id: true, quantity: true },
               orderBy: { createdAt: "asc" },
@@ -340,30 +389,66 @@ const update = async (
 
     const currency = input.currency ?? current.currency;
     if (currency !== current.rfq.currency) {
-      throw new AppError(400, `Quotation currency must match the RFQ currency (${current.rfq.currency})`);
+      throw new AppError(
+        400,
+        `Quotation currency must match the RFQ currency (${current.rfq.currency})`,
+      );
     }
 
-    const validUntil = input.validUntil ? toDateOnly(input.validUntil) : current.validUntil;
+    const validUntil = input.validUntil
+      ? toDateOnly(input.validUntil)
+      : current.validUntil;
     assertQuotationValidityWindow(validUntil, current.rfq.submissionDeadline);
 
-    const priceInputs = input.items ?? current.items.map((item) => ({
-      rfqItemId: item.rfqItemId,
-      unitPrice: Number(item.unitPrice),
-      notes: item.notes,
-    }));
+    const priceInputs =
+      input.items ??
+      current.items.map((item) => ({
+        rfqItemId: item.rfqItemId,
+        unitPrice: Number(item.unitPrice),
+        notes: item.notes,
+      }));
     const taxAmount = input.taxAmount ?? Number(current.taxAmount);
     const pricing = calculateQuotationPricing(
-      current.rfq.items.map((item) => ({ id: item.id, quantity: Number(item.quantity) })),
+      current.rfq.items.map((item) => ({
+        id: item.id,
+        quantity: Number(item.quantity),
+      })),
       priceInputs,
       taxAmount,
     );
+    toStripeMinorUnits(pricing.totalAmount, currency);
 
-    if (input.items) {
-      await tx.quotationItem.deleteMany({ where: { quotationId } });
+    const transitionAt = new Date();
+    const rfqVersionAt = nextVersionTimestamp(
+      current.rfq.updatedAt,
+      transitionAt,
+    );
+    const quotationVersionAt = nextVersionTimestamp(
+      current.updatedAt,
+      transitionAt,
+    );
+    const claimedRfq = await tx.rfq.updateMany({
+      where: {
+        id: current.rfq.id,
+        status: "OPEN",
+        deletedAt: null,
+        submissionDeadline: { gt: transitionAt },
+        updatedAt: current.rfq.updatedAt,
+      },
+      data: { updatedAt: rfqVersionAt },
+    });
+    if (claimedRfq.count !== 1) {
+      throw new AppError(409, "RFQ state changed; retry the request");
     }
 
-    const quotation = await tx.quotation.update({
-      where: { id: quotationId },
+    const claimedQuotation = await tx.quotation.updateMany({
+      where: {
+        id: quotationId,
+        supplierId,
+        status: "SUBMITTED",
+        deletedAt: null,
+        updatedAt: current.updatedAt,
+      },
       data: {
         currency,
         subtotal: pricing.subtotal,
@@ -373,20 +458,29 @@ const update = async (
         validUntil: input.validUntil ? validUntil : undefined,
         terms: input.terms,
         notes: input.notes,
-        ...(input.items
-          ? {
-              items: {
-                create: pricing.items.map((item) => ({
-                  rfqItemId: item.rfqItemId,
-                  quantity: item.quantity,
-                  unitPrice: item.unitPrice,
-                  lineTotal: item.lineTotal,
-                  notes: item.notes,
-                })),
-              },
-            }
-          : {}),
+        updatedAt: quotationVersionAt,
       },
+    });
+    if (claimedQuotation.count !== 1) {
+      throw new AppError(409, "Quotation state changed; retry the request");
+    }
+
+    if (input.items) {
+      await tx.quotationItem.deleteMany({ where: { quotationId } });
+      await tx.quotationItem.createMany({
+        data: pricing.items.map((item) => ({
+          quotationId,
+          rfqItemId: item.rfqItemId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          lineTotal: item.lineTotal,
+          notes: item.notes,
+        })),
+      });
+    }
+
+    const quotation = await tx.quotation.findUniqueOrThrow({
+      where: { id: quotationId },
       select: quotationDetailSelect,
     });
 
@@ -407,15 +501,25 @@ const update = async (
   });
 };
 
-const withdraw = async (supplierId: string, quotationId: string, context: AuditContext) => {
+const withdraw = async (
+  supplierId: string,
+  quotationId: string,
+  context: AuditContext,
+) => {
   return prisma.$transaction(async (tx) => {
     const current = await tx.quotation.findFirst({
       where: { id: quotationId, supplierId, deletedAt: null },
       select: {
         id: true,
         status: true,
+        updatedAt: true,
         rfq: {
-          select: { id: true, status: true, submissionDeadline: true },
+          select: {
+            id: true,
+            status: true,
+            submissionDeadline: true,
+            updatedAt: true,
+          },
         },
       },
     });
@@ -428,9 +532,49 @@ const withdraw = async (supplierId: string, quotationId: string, context: AuditC
     }
     assertOpenRfq(current.rfq);
 
-    const quotation = await tx.quotation.update({
+    const withdrawnAt = new Date();
+    const rfqVersionAt = nextVersionTimestamp(
+      current.rfq.updatedAt,
+      withdrawnAt,
+    );
+    const quotationVersionAt = nextVersionTimestamp(
+      current.updatedAt,
+      withdrawnAt,
+    );
+    const claimedRfq = await tx.rfq.updateMany({
+      where: {
+        id: current.rfq.id,
+        status: "OPEN",
+        deletedAt: null,
+        submissionDeadline: { gt: withdrawnAt },
+        updatedAt: current.rfq.updatedAt,
+      },
+      data: { updatedAt: rfqVersionAt },
+    });
+    if (claimedRfq.count !== 1) {
+      throw new AppError(409, "RFQ state changed; retry the request");
+    }
+
+    const claimedQuotation = await tx.quotation.updateMany({
+      where: {
+        id: quotationId,
+        supplierId,
+        status: "SUBMITTED",
+        deletedAt: null,
+        updatedAt: current.updatedAt,
+      },
+      data: {
+        status: "WITHDRAWN",
+        withdrawnAt,
+        updatedAt: quotationVersionAt,
+      },
+    });
+    if (claimedQuotation.count !== 1) {
+      throw new AppError(409, "Quotation state changed; retry the request");
+    }
+
+    const quotation = await tx.quotation.findUniqueOrThrow({
       where: { id: quotationId },
-      data: { status: "WITHDRAWN", withdrawnAt: new Date() },
       select: quotationDetailSelect,
     });
 

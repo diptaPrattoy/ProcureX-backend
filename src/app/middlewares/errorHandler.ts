@@ -8,7 +8,12 @@ type ErrorWithCode = Error & {
   meta?: unknown;
 };
 
-export const globalErrorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
+export const globalErrorHandler: ErrorRequestHandler = (
+  error,
+  _req,
+  res,
+  _next,
+) => {
   let statusCode = 500;
   let message = "Something went wrong";
   let errors: unknown[] = [];
@@ -24,14 +29,21 @@ export const globalErrorHandler: ErrorRequestHandler = (error, _req, res, _next)
       path: issue.path.join("."),
       message: issue.message,
     }));
-  } else if (error instanceof Error && (error as ErrorWithCode).code === "P2002") {
+  } else if (
+    error instanceof Error &&
+    (error as ErrorWithCode).code === "P2002"
+  ) {
     statusCode = 409;
     message = "A record with the same unique value already exists";
-  } else if (error instanceof Error && (error as ErrorWithCode).code === "P2025") {
+  } else if (
+    error instanceof Error &&
+    (error as ErrorWithCode).code === "P2025"
+  ) {
     statusCode = 404;
     message = "Requested record was not found";
   } else if (error instanceof Error) {
-    message = env.NODE_ENV === "development" ? error.message || message : message;
+    message =
+      env.NODE_ENV === "development" ? error.message || message : message;
   }
 
   const payload: Record<string, unknown> = {

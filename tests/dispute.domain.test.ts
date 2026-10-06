@@ -8,7 +8,13 @@ import {
 } from "../src/app/modules/dispute/dispute.domain.js";
 
 test("only engaged purchase orders can be disputed", () => {
-  for (const status of ["ACCEPTED", "IN_PROGRESS", "PARTIALLY_DELIVERED", "DELIVERED", "COMPLETED"] as const) {
+  for (const status of [
+    "ACCEPTED",
+    "IN_PROGRESS",
+    "PARTIALLY_DELIVERED",
+    "DELIVERED",
+    "COMPLETED",
+  ] as const) {
     assert.doesNotThrow(() => assertPurchaseOrderCanBeDisputed(status));
   }
   for (const status of ["ISSUED", "REJECTED", "CANCELLED"] as const) {
@@ -17,7 +23,14 @@ test("only engaged purchase orders can be disputed", () => {
 });
 
 test("cancelled invoices cannot enter the dispute workflow", () => {
-  for (const status of ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED", "PAYMENT_PENDING", "PAID"] as const) {
+  for (const status of [
+    "SUBMITTED",
+    "UNDER_REVIEW",
+    "APPROVED",
+    "REJECTED",
+    "PAYMENT_PENDING",
+    "PAID",
+  ] as const) {
     assert.doesNotThrow(() => assertInvoiceCanBeDisputed(status));
   }
   assert.throws(() => assertInvoiceCanBeDisputed("CANCELLED"));

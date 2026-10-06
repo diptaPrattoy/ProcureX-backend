@@ -39,7 +39,12 @@ test("quotation rejects missing or duplicate RFQ item prices", () => {
     () =>
       calculateQuotationPricing(
         rfqItems,
-        [{ rfqItemId: rfqItems[0]!.id, unitPrice: 10 }],
+        [
+          {
+            rfqItemId: "11111111-1111-4111-8111-111111111111",
+            unitPrice: 10,
+          },
+        ],
         0,
       ),
     (error) => error instanceof AppError && error.statusCode === 400,
@@ -50,8 +55,14 @@ test("quotation rejects missing or duplicate RFQ item prices", () => {
       calculateQuotationPricing(
         rfqItems,
         [
-          { rfqItemId: rfqItems[0]!.id, unitPrice: 10 },
-          { rfqItemId: rfqItems[0]!.id, unitPrice: 20 },
+          {
+            rfqItemId: "11111111-1111-4111-8111-111111111111",
+            unitPrice: 10,
+          },
+          {
+            rfqItemId: "11111111-1111-4111-8111-111111111111",
+            unitPrice: 20,
+          },
         ],
         0,
       ),
@@ -64,12 +75,20 @@ test("quotation validity must cover the RFQ submission deadline", () => {
   const deadline = new Date("2026-09-28T18:00:00.000Z");
 
   assert.doesNotThrow(() =>
-    assertQuotationValidityWindow(new Date("2026-09-28T00:00:00.000Z"), deadline, now),
+    assertQuotationValidityWindow(
+      new Date("2026-09-28T00:00:00.000Z"),
+      deadline,
+      now,
+    ),
   );
 
   assert.throws(
     () =>
-      assertQuotationValidityWindow(new Date("2026-09-27T00:00:00.000Z"), deadline, now),
+      assertQuotationValidityWindow(
+        new Date("2026-09-27T00:00:00.000Z"),
+        deadline,
+        now,
+      ),
     (error) => error instanceof AppError && error.statusCode === 400,
   );
 });
@@ -89,7 +108,22 @@ test("submission validation normalizes currency and rejects invalid prices", () 
   });
 
   assert.equal(parsed.currency, "USD");
-  assert.equal(parsed.items[0]!.unitPrice, 25.5);
+  assert.equal(parsed.items[0]?.unitPrice, 25.5);
+
+  assert.equal(
+    submitQuotationSchema.safeParse({
+      currency: "ABC",
+      deliveryDays: 14,
+      validUntil: "2026-10-01",
+      items: [
+        {
+          rfqItemId: "11111111-1111-4111-8111-111111111111",
+          unitPrice: 25.5,
+        },
+      ],
+    }).success,
+    false,
+  );
 
   assert.equal(
     submitQuotationSchema.safeParse({

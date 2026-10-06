@@ -15,13 +15,17 @@ test("dashboard range uses the requested rolling-day window", () => {
 });
 
 test("daily trend buckets fill missing metrics with zero", () => {
-  const buckets = buildDailyTrendBuckets(3, new Date("2026-09-21T18:00:00.000Z"), {
-    rfqs: [new Date("2026-09-20T10:00:00.000Z")],
-    payments: [
-      new Date("2026-09-19T01:00:00.000Z"),
-      new Date("2026-09-19T22:00:00.000Z"),
-    ],
-  });
+  const buckets = buildDailyTrendBuckets(
+    3,
+    new Date("2026-09-21T18:00:00.000Z"),
+    {
+      rfqs: [new Date("2026-09-20T10:00:00.000Z")],
+      payments: [
+        new Date("2026-09-19T01:00:00.000Z"),
+        new Date("2026-09-19T22:00:00.000Z"),
+      ],
+    },
+  );
 
   assert.deepEqual(buckets, [
     { date: "2026-09-19", rfqs: 0, payments: 2 },
@@ -67,11 +71,7 @@ test("financial summary keeps currencies separate and calculates net collection"
 test("countByKey creates deterministic grouped counts", () => {
   assert.deepEqual(
     countByKey(
-      [
-        { role: "BUYER" },
-        { role: "BUYER" },
-        { role: "SUPPLIER" },
-      ],
+      [{ role: "BUYER" }, { role: "BUYER" }, { role: "SUPPLIER" }],
       "role",
     ),
     { BUYER: 2, SUPPLIER: 1 },

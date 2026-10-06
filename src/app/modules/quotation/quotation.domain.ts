@@ -39,7 +39,10 @@ export const calculateQuotationPricing = (
   const items = rfqItems.map((rfqItem) => {
     const input = inputByItemId.get(rfqItem.id);
     if (!input) {
-      throw new AppError(400, "Quotation must price every RFQ item exactly once");
+      throw new AppError(
+        400,
+        "Quotation must price every RFQ item exactly once",
+      );
     }
 
     const quantityMilli = toScaledInteger(rfqItem.quantity, 3);
@@ -71,7 +74,9 @@ export const assertQuotationValidityWindow = (
   submissionDeadline: Date,
   now = new Date(),
 ) => {
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const today = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
   const deadlineDay = new Date(
     Date.UTC(
       submissionDeadline.getUTCFullYear(),
@@ -85,6 +90,9 @@ export const assertQuotationValidityWindow = (
   }
 
   if (validUntil < deadlineDay) {
-    throw new AppError(400, "Quotation must remain valid through the RFQ submission deadline");
+    throw new AppError(
+      400,
+      "Quotation must remain valid through the RFQ submission deadline",
+    );
   }
 };

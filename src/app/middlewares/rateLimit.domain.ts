@@ -7,5 +7,7 @@ export const normalizeClientIp = (value: string | undefined | null): string => {
   return ip.startsWith("::ffff:") ? ip.slice(7) : ip;
 };
 
-export const buildRateLimitIdentifier = (scope: string, ip: string | undefined | null): string =>
-  `${scope}:${normalizeClientIp(ip)}`;
+export const buildRateLimitIdentifier = (
+  scope: string,
+  ip: string | undefined | null,
+): string => `${scope}:${normalizeClientIp(ip)}`;

@@ -4,14 +4,15 @@ import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../../lib/prisma.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../errors/AppError.js";
-import { AuditService, type AuditContext } from "../audit/audit.service.js";
+import { type AuditContext, AuditService } from "../audit/audit.service.js";
 import {
   assertInvoiceCanEnterPayment,
+  isCheckoutSessionExpired,
   isReusableCheckoutStatus,
   toStripeMinorUnits,
 } from "./payment.domain.js";
-import { getStripeClient } from "./stripe.client.js";
 import type { PaymentListQuery } from "./payment.validation.js";
+import { getStripeClient } from "./stripe.client.js";
 
 const paymentListSelect = {
   id: true,
@@ -49,11 +50,18 @@ const paymentListSelect = {
 } as const;
 
 type PreparedPayment = {
+  amountMinor: number;
   payment: {
     id: string;
     invoiceId: string;
     buyerId: string;
-    status: "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "CANCELLED" | "REFUNDED";
+    status:
+      | "PENDING"
+      | "PROCESSING"
+      | "SUCCEEDED"
+      | "FAILED"
+      | "CANCELLED"
+      | "REFUNDED";
     currency: string;
     amount: Prisma.Decimal;
     idempotencyKey: string;
@@ -67,10 +75,27 @@ type PreparedPayment = {
     supplierId: string;
     currency: string;
     totalAmount: Prisma.Decimal;
-    status: "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "PAYMENT_PENDING" | "PAID" | "CANCELLED";
+    status:
+      | "SUBMITTED"
+      | "UNDER_REVIEW"
+      | "APPROVED"
+      | "REJECTED"
+      | "PAYMENT_PENDING"
+      | "PAID"
+      | "CANCELLED";
     purchaseOrder: { poNumber: string };
     buyer: { email: string };
   };
+};
+
+type CheckoutResult = {
+  paymentId: string;
+  invoiceId: string;
+  status: PreparedPayment["payment"]["status"];
+  checkoutSessionId: string;
+  checkoutUrl: string;
+  expiresAt: number | null;
+  reused: boolean;
 };
 
 const readCheckoutMetadata = (value: Prisma.JsonValue | null) => {
@@ -79,8 +104,10 @@ const readCheckoutMetadata = (value: Prisma.JsonValue | null) => {
   }
   const object = value as Record<string, unknown>;
   return {
-    checkoutUrl: typeof object.checkoutUrl === "string" ? object.checkoutUrl : undefined,
-    expiresAt: typeof object.expiresAt === "number" ? object.expiresAt : undefined,
+    checkoutUrl:
+      typeof object.checkoutUrl === "string" ? object.checkoutUrl : undefined,
+    expiresAt:
+      typeof object.expiresAt === "number" ? object.expiresAt : undefined,
   };
 };
 
@@ -109,10 +136,18 @@ const preparePayment = async (
       throw new AppError(404, "Invoice not found");
     }
     assertInvoiceCanEnterPayment(invoice.status);
+    const amountMinor = toStripeMinorUnits(
+      invoice.totalAmount.toString(),
+      invoice.currency,
+    );
 
     if (invoice.status === "PAYMENT_PENDING") {
       const existingPayment = await tx.payment.findFirst({
-        where: { invoiceId: invoice.id, buyerId, status: { in: ["PENDING", "PROCESSING"] } },
+        where: {
+          invoiceId: invoice.id,
+          buyerId,
+          status: { in: ["PENDING", "PROCESSING"] },
+        },
         orderBy: { createdAt: "desc" },
         select: {
           id: true,
@@ -128,10 +163,13 @@ const preparePayment = async (
       });
 
       if (existingPayment && isReusableCheckoutStatus(existingPayment.status)) {
-        return { payment: existingPayment, invoice };
+        return { payment: existingPayment, invoice, amountMinor };
       }
 
-      throw new AppError(409, "Invoice has a pending payment state but no reusable payment attempt");
+      throw new AppError(
+        409,
+        "Invoice has a pending payment state but no reusable payment attempt",
+      );
     }
 
     const claimed = await tx.invoice.updateMany({
@@ -139,7 +177,10 @@ const preparePayment = async (
       data: { status: "PAYMENT_PENDING" },
     });
     if (claimed.count !== 1) {
-      throw new AppError(409, "Invoice payment state changed; retry the request");
+      throw new AppError(
+        409,
+        "Invoice payment state changed; retry the request",
+      );
     }
 
     const payment = await tx.payment.create({
@@ -179,7 +220,11 @@ const preparePayment = async (
       ...context,
     });
 
-    return { payment, invoice: { ...invoice, status: "PAYMENT_PENDING" } };
+    return {
+      payment,
+      invoice: { ...invoice, status: "PAYMENT_PENDING" },
+      amountMinor,
+    };
   });
 };
 
@@ -192,7 +237,12 @@ const markCheckoutCreationFailed = async (
 ) => {
   await prisma.$transaction(async (tx) => {
     const failed = await tx.payment.updateMany({
-      where: { id: paymentId, buyerId, status: "PENDING", providerCheckoutSessionId: null },
+      where: {
+        id: paymentId,
+        buyerId,
+        status: "PENDING",
+        providerCheckoutSessionId: null,
+      },
       data: { status: "FAILED", failureReason: reason.slice(0, 1000) },
     });
 
@@ -216,27 +266,114 @@ const markCheckoutCreationFailed = async (
   });
 };
 
+const expireCheckoutAttempt = async (
+  prepared: PreparedPayment,
+  buyerId: string,
+  context: AuditContext,
+  stripe: Stripe,
+) => {
+  const checkoutSessionId = prepared.payment.providerCheckoutSessionId;
+  if (!checkoutSessionId) {
+    throw new AppError(409, "Checkout session is missing; retry the request");
+  }
+
+  let session: Stripe.Checkout.Session;
+  try {
+    session = await stripe.checkout.sessions.retrieve(checkoutSessionId);
+  } catch {
+    throw new AppError(502, "Unable to confirm the Stripe checkout status");
+  }
+
+  if (session.payment_status === "paid" || session.status === "complete") {
+    throw new AppError(
+      409,
+      "Checkout is complete and payment confirmation is pending",
+    );
+  }
+  if (session.status === "open") {
+    try {
+      session = await stripe.checkout.sessions.expire(checkoutSessionId);
+    } catch {
+      throw new AppError(502, "Unable to expire the Stripe checkout session");
+    }
+  }
+  if (session.status !== "expired") {
+    throw new AppError(409, "Checkout cannot be renewed in its current state");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const cancelled = await tx.payment.updateMany({
+      where: {
+        id: prepared.payment.id,
+        buyerId,
+        status: { in: ["PENDING", "PROCESSING"] },
+        providerCheckoutSessionId: checkoutSessionId,
+      },
+      data: {
+        status: "CANCELLED",
+        failureReason: "Stripe Checkout session expired",
+      },
+    });
+    if (cancelled.count !== 1) {
+      throw new AppError(409, "Payment state changed; retry the request");
+    }
+
+    const released = await tx.invoice.updateMany({
+      where: {
+        id: prepared.invoice.id,
+        buyerId,
+        status: "PAYMENT_PENDING",
+      },
+      data: { status: "APPROVED" },
+    });
+    if (released.count !== 1) {
+      throw new AppError(
+        409,
+        "Invoice payment state changed; retry the request",
+      );
+    }
+
+    await AuditService.create(tx, {
+      actorId: buyerId,
+      action: "PAYMENT_CHECKOUT_EXPIRED",
+      entityType: "Payment",
+      entityId: prepared.payment.id,
+      metadata: {
+        invoiceId: prepared.invoice.id,
+        invoiceNumber: prepared.invoice.invoiceNumber,
+        checkoutSessionId,
+      },
+      ...context,
+    });
+  });
+};
+
 const createCheckout = async (
   buyerId: string,
   invoiceId: string,
   context: AuditContext,
-) => {
+): Promise<CheckoutResult> => {
   const prepared = await preparePayment(buyerId, invoiceId, context);
   const metadata = readCheckoutMetadata(prepared.payment.providerMetadata);
+  const stripe = getStripeClient();
 
   if (prepared.payment.providerCheckoutSessionId && metadata.checkoutUrl) {
-    return {
-      paymentId: prepared.payment.id,
-      invoiceId: prepared.invoice.id,
-      status: prepared.payment.status,
-      checkoutSessionId: prepared.payment.providerCheckoutSessionId,
-      checkoutUrl: metadata.checkoutUrl,
-      expiresAt: metadata.expiresAt ?? null,
-      reused: true,
-    };
+    if (!isCheckoutSessionExpired(metadata.expiresAt)) {
+      return {
+        paymentId: prepared.payment.id,
+        invoiceId: prepared.invoice.id,
+        status: prepared.payment.status,
+        checkoutSessionId: prepared.payment.providerCheckoutSessionId,
+        checkoutUrl: metadata.checkoutUrl,
+        expiresAt: metadata.expiresAt ?? null,
+        reused: true,
+      };
+    }
+
+    await expireCheckoutAttempt(prepared, buyerId, context, stripe);
+    return createCheckout(buyerId, invoiceId, context);
   }
 
-  const stripe = getStripeClient();
   const paymentMetadata = {
     paymentId: prepared.payment.id,
     invoiceId: prepared.invoice.id,
@@ -257,10 +394,7 @@ const createCheckout = async (
             quantity: 1,
             price_data: {
               currency: prepared.invoice.currency.toLowerCase(),
-              unit_amount: toStripeMinorUnits(
-                prepared.invoice.totalAmount.toString(),
-                prepared.invoice.currency,
-              ),
+              unit_amount: prepared.amountMinor,
               product_data: {
                 name: `ProcuraX invoice ${prepared.invoice.invoiceNumber}`,
                 description: `Purchase order ${prepared.invoice.purchaseOrder.poNumber}`,
@@ -274,7 +408,10 @@ const createCheckout = async (
       { idempotencyKey: prepared.payment.idempotencyKey },
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Stripe checkout creation failed";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Stripe checkout creation failed";
     await markCheckoutCreationFailed(
       prepared.payment.id,
       prepared.invoice.id,
@@ -309,6 +446,7 @@ const createCheckout = async (
         providerMetadata: {
           checkoutUrl: session.url,
           expiresAt: session.expires_at,
+          amountMinor: prepared.amountMinor,
         },
       },
     });

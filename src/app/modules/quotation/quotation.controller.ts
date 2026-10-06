@@ -29,19 +29,34 @@ const submit = catchAsync(async (req: Request, res: Response) => {
     req.body,
     getAuditContext(req),
   );
-  sendResponse(res, { statusCode: 201, message: "Quotation submitted successfully", data });
+  sendResponse(res, {
+    statusCode: 201,
+    message: "Quotation submitted successfully",
+    data,
+  });
 });
 
 const listMine = catchAsync(async (req: Request, res: Response) => {
   const query = myQuotationListQuerySchema.parse(req.query);
   const data = await QuotationService.listMine(requireUserId(req), query);
-  sendResponse(res, { statusCode: 200, message: "Supplier quotations retrieved successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Supplier quotations retrieved successfully",
+    data,
+  });
 });
 
 const getMineById = catchAsync(async (req: Request, res: Response) => {
   const { quotationId } = quotationIdParamSchema.parse(req.params);
-  const data = await QuotationService.getMineById(requireUserId(req), quotationId);
-  sendResponse(res, { statusCode: 200, message: "Quotation retrieved successfully", data });
+  const data = await QuotationService.getMineById(
+    requireUserId(req),
+    quotationId,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Quotation retrieved successfully",
+    data,
+  });
 });
 
 const update = catchAsync(async (req: Request, res: Response) => {
@@ -52,7 +67,11 @@ const update = catchAsync(async (req: Request, res: Response) => {
     req.body,
     getAuditContext(req),
   );
-  sendResponse(res, { statusCode: 200, message: "Quotation updated successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Quotation updated successfully",
+    data,
+  });
 });
 
 const withdraw = catchAsync(async (req: Request, res: Response) => {
@@ -62,7 +81,11 @@ const withdraw = catchAsync(async (req: Request, res: Response) => {
     quotationId,
     getAuditContext(req),
   );
-  sendResponse(res, { statusCode: 200, message: "Quotation withdrawn successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Quotation withdrawn successfully",
+    data,
+  });
 });
 
 export const QuotationController = {

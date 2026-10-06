@@ -1,7 +1,7 @@
 import type { Prisma, UserRole } from "../../../generated/prisma/client.js";
 import { prisma } from "../../../lib/prisma.js";
 import { AppError } from "../../errors/AppError.js";
-import { AuditService, type AuditContext } from "../audit/audit.service.js";
+import { type AuditContext, AuditService } from "../audit/audit.service.js";
 import { assertPurchaseOrderTransition } from "./purchase-order.domain.js";
 import type { PurchaseOrderListQuery } from "./purchase-order.validation.js";
 
@@ -82,7 +82,10 @@ const purchaseOrderDetailSelect = {
 
 type SupportedPurchaseOrderRole = Extract<UserRole, "BUYER" | "SUPPLIER">;
 
-const roleScope = (userId: string, role: SupportedPurchaseOrderRole): Prisma.PurchaseOrderWhereInput =>
+const roleScope = (
+  userId: string,
+  role: SupportedPurchaseOrderRole,
+): Prisma.PurchaseOrderWhereInput =>
   role === "BUYER" ? { buyerId: userId } : { supplierId: userId };
 
 const listMine = async (
@@ -123,7 +126,9 @@ const listMine = async (
   };
 
   const skip = (query.page - 1) * query.limit;
-  const orderBy = { [query.sortBy]: query.sortOrder } as Prisma.PurchaseOrderOrderByWithRelationInput;
+  const orderBy = {
+    [query.sortBy]: query.sortOrder,
+  } as Prisma.PurchaseOrderOrderByWithRelationInput;
   const [items, total] = await Promise.all([
     prisma.purchaseOrder.findMany({
       where,
@@ -205,7 +210,10 @@ const transitionSupplierOrder = async (
       data: updateData,
     });
     if (transition.count !== 1) {
-      throw new AppError(409, "Purchase order status changed; refresh and try again");
+      throw new AppError(
+        409,
+        "Purchase order status changed; refresh and try again",
+      );
     }
 
     const auditAction =
@@ -220,7 +228,11 @@ const transitionSupplierOrder = async (
       action: auditAction,
       entityType: "PurchaseOrder",
       entityId: purchaseOrder.id,
-      metadata: { poNumber: purchaseOrder.poNumber, previousStatus: purchaseOrder.status, targetStatus },
+      metadata: {
+        poNumber: purchaseOrder.poNumber,
+        previousStatus: purchaseOrder.status,
+        targetStatus,
+      },
       ...context,
     });
 
@@ -240,7 +252,10 @@ const transitionSupplierOrder = async (
             : action === "REJECT"
               ? `${purchaseOrder.poNumber} was rejected by the supplier.`
               : `Fulfillment has started for ${purchaseOrder.poNumber}.`,
-        metadata: { purchaseOrderId: purchaseOrder.id, poNumber: purchaseOrder.poNumber },
+        metadata: {
+          purchaseOrderId: purchaseOrder.id,
+          poNumber: purchaseOrder.poNumber,
+        },
       },
     });
 
@@ -283,7 +298,10 @@ const cancelByBuyer = async (
       data: { status: "CANCELLED", cancelledAt },
     });
     if (transition.count !== 1) {
-      throw new AppError(409, "Purchase order status changed; refresh and try again");
+      throw new AppError(
+        409,
+        "Purchase order status changed; refresh and try again",
+      );
     }
 
     await AuditService.create(tx, {
@@ -291,7 +309,11 @@ const cancelByBuyer = async (
       action: "PURCHASE_ORDER_CANCELLED",
       entityType: "PurchaseOrder",
       entityId: purchaseOrder.id,
-      metadata: { poNumber: purchaseOrder.poNumber, previousStatus: purchaseOrder.status, targetStatus },
+      metadata: {
+        poNumber: purchaseOrder.poNumber,
+        previousStatus: purchaseOrder.status,
+        targetStatus,
+      },
       ...context,
     });
 
@@ -301,7 +323,10 @@ const cancelByBuyer = async (
         type: "PURCHASE_ORDER_CANCELLED",
         title: "Purchase order cancelled",
         message: `${purchaseOrder.poNumber} was cancelled by the buyer before acceptance.`,
-        metadata: { purchaseOrderId: purchaseOrder.id, poNumber: purchaseOrder.poNumber },
+        metadata: {
+          purchaseOrderId: purchaseOrder.id,
+          poNumber: purchaseOrder.poNumber,
+        },
       },
     });
 
@@ -312,14 +337,29 @@ const cancelByBuyer = async (
   });
 };
 
-const accept = (supplierId: string, purchaseOrderId: string, context: AuditContext) =>
-  transitionSupplierOrder(supplierId, purchaseOrderId, "ACCEPT", context);
+const accept = (
+  supplierId: string,
+  purchaseOrderId: string,
+  context: AuditContext,
+) => transitionSupplierOrder(supplierId, purchaseOrderId, "ACCEPT", context);
 
-const reject = (supplierId: string, purchaseOrderId: string, context: AuditContext) =>
-  transitionSupplierOrder(supplierId, purchaseOrderId, "REJECT", context);
+const reject = (
+  supplierId: string,
+  purchaseOrderId: string,
+  context: AuditContext,
+) => transitionSupplierOrder(supplierId, purchaseOrderId, "REJECT", context);
 
-const startFulfillment = (supplierId: string, purchaseOrderId: string, context: AuditContext) =>
-  transitionSupplierOrder(supplierId, purchaseOrderId, "START_FULFILLMENT", context);
+const startFulfillment = (
+  supplierId: string,
+  purchaseOrderId: string,
+  context: AuditContext,
+) =>
+  transitionSupplierOrder(
+    supplierId,
+    purchaseOrderId,
+    "START_FULFILLMENT",
+    context,
+  );
 
 export const PurchaseOrderService = {
   listMine,

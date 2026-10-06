@@ -24,14 +24,30 @@ const requireUserId = (req: Request) => {
 const listForBuyer = catchAsync(async (req: Request, res: Response) => {
   const { rfqId } = quotationRfqIdParamSchema.parse(req.params);
   const query = buyerQuotationListQuerySchema.parse(req.query);
-  const data = await BuyerQuotationService.listForBuyer(requireUserId(req), rfqId, query);
-  sendResponse(res, { statusCode: 200, message: "RFQ quotations retrieved successfully", data });
+  const data = await BuyerQuotationService.listForBuyer(
+    requireUserId(req),
+    rfqId,
+    query,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    message: "RFQ quotations retrieved successfully",
+    data,
+  });
 });
 
 const getForBuyer = catchAsync(async (req: Request, res: Response) => {
   const { rfqId, quotationId } = rfqQuotationParamsSchema.parse(req.params);
-  const data = await BuyerQuotationService.getForBuyer(requireUserId(req), rfqId, quotationId);
-  sendResponse(res, { statusCode: 200, message: "Quotation retrieved successfully", data });
+  const data = await BuyerQuotationService.getForBuyer(
+    requireUserId(req),
+    rfqId,
+    quotationId,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Quotation retrieved successfully",
+    data,
+  });
 });
 
 const startEvaluation = catchAsync(async (req: Request, res: Response) => {
@@ -41,7 +57,11 @@ const startEvaluation = catchAsync(async (req: Request, res: Response) => {
     rfqId,
     getAuditContext(req),
   );
-  sendResponse(res, { statusCode: 200, message: "RFQ evaluation started successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "RFQ evaluation started successfully",
+    data,
+  });
 });
 
 const award = catchAsync(async (req: Request, res: Response) => {

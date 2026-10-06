@@ -23,7 +23,11 @@ const requireUserId = (req: Request): string => {
 
 const getMyProfile = catchAsync(async (req: Request, res: Response) => {
   const data = await SupplierService.getMyProfile(requireUserId(req));
-  sendResponse(res, { statusCode: 200, message: "Supplier profile retrieved successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Supplier profile retrieved successfully",
+    data,
+  });
 });
 
 const updateMyProfile = catchAsync(async (req: Request, res: Response) => {
@@ -32,7 +36,11 @@ const updateMyProfile = catchAsync(async (req: Request, res: Response) => {
     req.body,
     getAuditContext(req),
   );
-  sendResponse(res, { statusCode: 200, message: "Supplier profile updated successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Supplier profile updated successfully",
+    data,
+  });
 });
 
 const setMyCategories = catchAsync(async (req: Request, res: Response) => {
@@ -41,25 +49,41 @@ const setMyCategories = catchAsync(async (req: Request, res: Response) => {
     req.body,
     getAuditContext(req),
   );
-  sendResponse(res, { statusCode: 200, message: "Supplier categories updated successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Supplier categories updated successfully",
+    data,
+  });
 });
 
 const listVerified = catchAsync(async (req: Request, res: Response) => {
   const query = supplierListQuerySchema.parse(req.query);
   const data = await SupplierService.listVerified(query);
-  sendResponse(res, { statusCode: 200, message: "Verified suppliers retrieved successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Verified suppliers retrieved successfully",
+    data,
+  });
 });
 
 const getVerifiedById = catchAsync(async (req: Request, res: Response) => {
   const { supplierId } = supplierIdParamSchema.parse(req.params);
   const data = await SupplierService.getVerifiedById(supplierId);
-  sendResponse(res, { statusCode: 200, message: "Verified supplier retrieved successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Verified supplier retrieved successfully",
+    data,
+  });
 });
 
 const listForAdmin = catchAsync(async (req: Request, res: Response) => {
   const query = adminSupplierListQuerySchema.parse(req.query);
   const data = await SupplierService.listForAdmin(query);
-  sendResponse(res, { statusCode: 200, message: "Supplier verification queue retrieved successfully", data });
+  sendResponse(res, {
+    statusCode: 200,
+    message: "Supplier verification queue retrieved successfully",
+    data,
+  });
 });
 
 const updateVerification = catchAsync(async (req: Request, res: Response) => {
@@ -72,7 +96,10 @@ const updateVerification = catchAsync(async (req: Request, res: Response) => {
   );
   sendResponse(res, {
     statusCode: 200,
-    message: req.body.status === "VERIFIED" ? "Supplier verified successfully" : "Supplier rejected",
+    message:
+      req.body.status === "VERIFIED"
+        ? "Supplier verified successfully"
+        : "Supplier rejected",
     data,
   });
 });

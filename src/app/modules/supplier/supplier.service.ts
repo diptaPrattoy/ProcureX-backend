@@ -1,9 +1,9 @@
 import type { Prisma } from "../../../generated/prisma/client";
 import { prisma } from "../../../lib/prisma.js";
 import { env } from "../../config/env.js";
-import { CacheService } from "../cache/cache.service.js";
 import { AppError } from "../../errors/AppError.js";
-import { AuditService, type AuditContext } from "../audit/audit.service.js";
+import { type AuditContext, AuditService } from "../audit/audit.service.js";
+import { CacheService } from "../cache/cache.service.js";
 import type {
   AdminSupplierListQuery,
   SetSupplierCategoriesInput,
@@ -78,7 +78,11 @@ const publicSupplierSelect = {
   },
 } as const;
 
-const unwrapCategories = <T extends { categories: Array<{ category: unknown }> }>(supplier: T) => ({
+const unwrapCategories = <
+  T extends { categories: Array<{ category: unknown }> },
+>(
+  supplier: T,
+) => ({
   ...supplier,
   categories: supplier.categories.map((entry) => entry.category),
 });
@@ -124,7 +128,11 @@ const updateMyProfile = async (
       throw new AppError(404, "Supplier profile not found");
     }
 
-    if (firstName !== undefined || lastName !== undefined || phone !== undefined) {
+    if (
+      firstName !== undefined ||
+      lastName !== undefined ||
+      phone !== undefined
+    ) {
       await tx.user.update({
         where: { id: userId },
         data: { firstName, lastName, phone: phone === "" ? null : phone },
@@ -155,7 +163,8 @@ const updateMyProfile = async (
         ...(legalIdentityChanged
           ? {
               verificationStatus: "PENDING" as const,
-              verificationNote: "Re-verification required after legal identity details changed",
+              verificationNote:
+                "Re-verification required after legal identity details changed",
               verifiedAt: null,
               verifiedById: null,
             }
@@ -206,12 +215,16 @@ const setMyCategories = async (
     if (categories.length !== input.categoryIds.length) {
       const foundIds = new Set(categories.map((category) => category.id));
       const invalidIds = input.categoryIds.filter((id) => !foundIds.has(id));
-      throw new AppError(400, "One or more categories are invalid or inactive", [
-        { invalidCategoryIds: invalidIds },
-      ]);
+      throw new AppError(
+        400,
+        "One or more categories are invalid or inactive",
+        [{ invalidCategoryIds: invalidIds }],
+      );
     }
 
-    await tx.supplierCategory.deleteMany({ where: { supplierProfileId: supplier.id } });
+    await tx.supplierCategory.deleteMany({
+      where: { supplierProfileId: supplier.id },
+    });
     await tx.supplierCategory.createMany({
       data: input.categoryIds.map((categoryId) => ({
         supplierProfileId: supplier.id,
@@ -248,8 +261,12 @@ const listVerifiedFromDatabase = async (query: SupplierListQuery) => {
           ],
         }
       : {}),
-    ...(query.city ? { city: { equals: query.city, mode: "insensitive" } } : {}),
-    ...(query.country ? { country: { equals: query.country, mode: "insensitive" } } : {}),
+    ...(query.city
+      ? { city: { equals: query.city, mode: "insensitive" } }
+      : {}),
+    ...(query.country
+      ? { country: { equals: query.country, mode: "insensitive" } }
+      : {}),
     ...(query.category
       ? {
           categories: {
@@ -328,13 +345,17 @@ const getVerifiedById = async (supplierId: string) =>
 const listForAdmin = async (query: AdminSupplierListQuery) => {
   const where: Prisma.SupplierProfileWhereInput = {
     deletedAt: null,
-    ...(query.verificationStatus ? { verificationStatus: query.verificationStatus } : {}),
+    ...(query.verificationStatus
+      ? { verificationStatus: query.verificationStatus }
+      : {}),
     ...(query.search
       ? {
           OR: [
             { companyName: { contains: query.search, mode: "insensitive" } },
             { legalName: { contains: query.search, mode: "insensitive" } },
-            { user: { email: { contains: query.search, mode: "insensitive" } } },
+            {
+              user: { email: { contains: query.search, mode: "insensitive" } },
+            },
           ],
         }
       : {}),
@@ -373,7 +394,14 @@ const updateVerification = async (
     const supplier = await tx.supplierProfile.findUnique({
       where: { id: supplierId },
       include: {
-        user: { select: { id: true, emailVerifiedAt: true, status: true, deletedAt: true } },
+        user: {
+          select: {
+            id: true,
+            emailVerifiedAt: true,
+            status: true,
+            deletedAt: true,
+          },
+        },
         categories: { select: { categoryId: true } },
       },
     });
@@ -383,23 +411,38 @@ const updateVerification = async (
     }
 
     if (supplier.user.status !== "ACTIVE") {
-      throw new AppError(400, "Supplier account must be active before verification");
+      throw new AppError(
+        400,
+        "Supplier account must be active before verification",
+      );
     }
 
     if (input.status === "VERIFIED") {
       if (!supplier.user.emailVerifiedAt) {
-        throw new AppError(400, "Supplier must verify their email before approval");
+        throw new AppError(
+          400,
+          "Supplier must verify their email before approval",
+        );
       }
       if (!supplier.businessRegistrationNo) {
-        throw new AppError(400, "Supplier business registration number is required before approval");
+        throw new AppError(
+          400,
+          "Supplier business registration number is required before approval",
+        );
       }
       if (supplier.categories.length === 0) {
-        throw new AppError(400, "Supplier must select at least one procurement category before approval");
+        throw new AppError(
+          400,
+          "Supplier must select at least one procurement category before approval",
+        );
       }
     }
 
     if (supplier.verificationStatus === input.status) {
-      throw new AppError(409, `Supplier is already ${input.status.toLowerCase()}`);
+      throw new AppError(
+        409,
+        `Supplier is already ${input.status.toLowerCase()}`,
+      );
     }
 
     const updated = await tx.supplierProfile.update({
@@ -415,7 +458,8 @@ const updateVerification = async (
 
     await AuditService.create(tx, {
       actorId: adminId,
-      action: input.status === "VERIFIED" ? "SUPPLIER_VERIFIED" : "SUPPLIER_REJECTED",
+      action:
+        input.status === "VERIFIED" ? "SUPPLIER_VERIFIED" : "SUPPLIER_REJECTED",
       entityType: "SupplierProfile",
       entityId: supplierId,
       metadata: {

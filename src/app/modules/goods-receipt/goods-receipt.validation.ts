@@ -42,13 +42,16 @@ export const createGoodsReceiptSchema = z
         ctx.addIssue({
           code: "custom",
           path: ["items", index],
-          message: "Accepted plus rejected quantity must equal received quantity",
+          message:
+            "Accepted plus rejected quantity must equal received quantity",
         });
       }
     });
   });
 
-export const purchaseOrderReceiptParamSchema = z.object({ purchaseOrderId: z.uuid() });
+export const purchaseOrderReceiptParamSchema = z.object({
+  purchaseOrderId: z.uuid(),
+});
 export const goodsReceiptIdParamSchema = z.object({ goodsReceiptId: z.uuid() });
 
 export const goodsReceiptListQuerySchema = z.object({

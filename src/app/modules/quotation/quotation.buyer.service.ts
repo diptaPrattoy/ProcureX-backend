@@ -2,13 +2,16 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../../lib/prisma.js";
 import { AppError } from "../../errors/AppError.js";
-import { AuditService, type AuditContext } from "../audit/audit.service.js";
+import { type AuditContext, AuditService } from "../audit/audit.service.js";
 import {
   assertCanStartEvaluation,
   assertQuotationCanBeAwarded,
   buildPurchaseOrderItems,
 } from "./quotation.award.domain.js";
 import type { BuyerQuotationListQuery } from "./quotation.validation.js";
+
+const nextVersionTimestamp = (current: Date, now = new Date()) =>
+  new Date(Math.max(now.getTime(), current.getTime() + 1));
 
 const buyerQuotationListSelect = {
   id: true,
@@ -110,7 +113,11 @@ const assertBuyerOwnsRfq = async (buyerId: string, rfqId: string) => {
   return rfq;
 };
 
-const listForBuyer = async (buyerId: string, rfqId: string, query: BuyerQuotationListQuery) => {
+const listForBuyer = async (
+  buyerId: string,
+  rfqId: string,
+  query: BuyerQuotationListQuery,
+) => {
   await assertBuyerOwnsRfq(buyerId, rfqId);
 
   const where: Prisma.QuotationWhereInput = {
@@ -128,7 +135,9 @@ const listForBuyer = async (buyerId: string, rfqId: string, query: BuyerQuotatio
       : {}),
   };
   const skip = (query.page - 1) * query.limit;
-  const orderBy = { [query.sortBy]: query.sortOrder } as Prisma.QuotationOrderByWithRelationInput;
+  const orderBy = {
+    [query.sortBy]: query.sortOrder,
+  } as Prisma.QuotationOrderByWithRelationInput;
 
   const [items, total] = await Promise.all([
     prisma.quotation.findMany({
@@ -152,7 +161,11 @@ const listForBuyer = async (buyerId: string, rfqId: string, query: BuyerQuotatio
   };
 };
 
-const getForBuyer = async (buyerId: string, rfqId: string, quotationId: string) => {
+const getForBuyer = async (
+  buyerId: string,
+  rfqId: string,
+  quotationId: string,
+) => {
   await assertBuyerOwnsRfq(buyerId, rfqId);
   const quotation = await prisma.quotation.findFirst({
     where: { id: quotationId, rfqId, deletedAt: null },
@@ -164,13 +177,18 @@ const getForBuyer = async (buyerId: string, rfqId: string, quotationId: string) 
   return quotation;
 };
 
-const startEvaluation = async (buyerId: string, rfqId: string, context: AuditContext) => {
+const startEvaluation = async (
+  buyerId: string,
+  rfqId: string,
+  context: AuditContext,
+) => {
   return prisma.$transaction(async (tx) => {
     const rfq = await tx.rfq.findFirst({
       where: { id: rfqId, buyerId, deletedAt: null },
       select: {
         id: true,
         status: true,
+        updatedAt: true,
         _count: {
           select: {
             quotations: {
@@ -184,17 +202,34 @@ const startEvaluation = async (buyerId: string, rfqId: string, context: AuditCon
     if (!rfq) {
       throw new AppError(404, "RFQ not found");
     }
-    assertCanStartEvaluation({ status: rfq.status, quotationCount: rfq._count.quotations });
+    assertCanStartEvaluation({
+      status: rfq.status,
+      quotationCount: rfq._count.quotations,
+    });
 
     const reviewedAt = new Date();
+    const versionAt = nextVersionTimestamp(rfq.updatedAt, reviewedAt);
+    const claimedRfq = await tx.rfq.updateMany({
+      where: {
+        id: rfqId,
+        buyerId,
+        status: "OPEN",
+        deletedAt: null,
+        updatedAt: rfq.updatedAt,
+      },
+      data: { status: "EVALUATING", updatedAt: versionAt },
+    });
+    if (claimedRfq.count !== 1) {
+      throw new AppError(409, "RFQ state changed; retry the request");
+    }
+
     await tx.quotation.updateMany({
       where: { rfqId, status: "SUBMITTED", deletedAt: null },
       data: { status: "UNDER_REVIEW", reviewedAt },
     });
 
-    const updatedRfq = await tx.rfq.update({
+    const updatedRfq = await tx.rfq.findUniqueOrThrow({
       where: { id: rfqId },
-      data: { status: "EVALUATING" },
       select: {
         id: true,
         title: true,
@@ -331,7 +366,10 @@ const award = async (
       quotation.supplier.supplierProfile.deletedAt ||
       quotation.supplier.supplierProfile.verificationStatus !== "VERIFIED"
     ) {
-      throw new AppError(409, "The selected supplier is no longer eligible for award");
+      throw new AppError(
+        409,
+        "The selected supplier is no longer eligible for award",
+      );
     }
     if (quotation.currency !== rfq.currency) {
       throw new AppError(409, "Quotation currency no longer matches the RFQ");

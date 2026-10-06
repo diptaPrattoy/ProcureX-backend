@@ -11,7 +11,12 @@ import {
 const router = Router();
 
 router.get("/", SupplierController.listVerified);
-router.get("/me/profile", requireAuth, requireRoles("SUPPLIER"), SupplierController.getMyProfile);
+router.get(
+  "/me/profile",
+  requireAuth,
+  requireRoles("SUPPLIER"),
+  SupplierController.getMyProfile,
+);
 router.patch(
   "/me/profile",
   requireAuth,

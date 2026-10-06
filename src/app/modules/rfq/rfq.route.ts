@@ -7,8 +7,18 @@ import { createRfqSchema, updateRfqSchema } from "./rfq.validation.js";
 const router = Router();
 
 // Supplier-facing opportunity discovery. Keep these routes before /:rfqId-style buyer routes.
-router.get("/open", requireAuth, requireRoles("SUPPLIER"), RfqController.listOpen);
-router.get("/open/:rfqId", requireAuth, requireRoles("SUPPLIER"), RfqController.getOpenById);
+router.get(
+  "/open",
+  requireAuth,
+  requireRoles("SUPPLIER"),
+  RfqController.listOpen,
+);
+router.get(
+  "/open/:rfqId",
+  requireAuth,
+  requireRoles("SUPPLIER"),
+  RfqController.getOpenById,
+);
 
 // Buyer-owned RFQ lifecycle.
 router.post(
@@ -19,7 +29,12 @@ router.post(
   RfqController.createDraft,
 );
 router.get("/mine", requireAuth, requireRoles("BUYER"), RfqController.listMine);
-router.get("/mine/:rfqId", requireAuth, requireRoles("BUYER"), RfqController.getMineById);
+router.get(
+  "/mine/:rfqId",
+  requireAuth,
+  requireRoles("BUYER"),
+  RfqController.getMineById,
+);
 router.patch(
   "/:rfqId",
   requireAuth,
@@ -27,8 +42,23 @@ router.patch(
   validateBody(updateRfqSchema),
   RfqController.updateDraft,
 );
-router.post("/:rfqId/publish", requireAuth, requireRoles("BUYER"), RfqController.publish);
-router.post("/:rfqId/cancel", requireAuth, requireRoles("BUYER"), RfqController.cancel);
-router.delete("/:rfqId", requireAuth, requireRoles("BUYER"), RfqController.softDelete);
+router.post(
+  "/:rfqId/publish",
+  requireAuth,
+  requireRoles("BUYER"),
+  RfqController.publish,
+);
+router.post(
+  "/:rfqId/cancel",
+  requireAuth,
+  requireRoles("BUYER"),
+  RfqController.cancel,
+);
+router.delete(
+  "/:rfqId",
+  requireAuth,
+  requireRoles("BUYER"),
+  RfqController.softDelete,
+);
 
 export const RfqRoutes = router;

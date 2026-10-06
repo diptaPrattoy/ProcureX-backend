@@ -11,8 +11,18 @@ invoicePaymentRouter.post(
 );
 
 const paymentRouter = Router();
-paymentRouter.get("/", requireAuth, requireRoles("BUYER"), PaymentController.listMine);
-paymentRouter.get("/:paymentId", requireAuth, requireRoles("BUYER"), PaymentController.getMineById);
+paymentRouter.get(
+  "/",
+  requireAuth,
+  requireRoles("BUYER"),
+  PaymentController.listMine,
+);
+paymentRouter.get(
+  "/:paymentId",
+  requireAuth,
+  requireRoles("BUYER"),
+  PaymentController.getMineById,
+);
 
 export const InvoicePaymentRoutes = invoicePaymentRouter;
 export const PaymentRoutes = paymentRouter;

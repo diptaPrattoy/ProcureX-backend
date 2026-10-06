@@ -1,24 +1,9 @@
-import { toStripeMinorUnits } from "../payment/payment.domain.js";
+import {
+  formatCurrencyMinorUnits,
+  toCurrencyMinorUnits,
+} from "../payment/payment.domain.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const ZERO_DECIMAL_CURRENCIES = new Set([
-  "BIF",
-  "CLP",
-  "DJF",
-  "GNF",
-  "JPY",
-  "KMF",
-  "KRW",
-  "MGA",
-  "PYG",
-  "RWF",
-  "UGX",
-  "VND",
-  "VUV",
-  "XAF",
-  "XOF",
-  "XPF",
-]);
 
 type DashboardRangeInput = {
   from?: Date;
@@ -26,21 +11,30 @@ type DashboardRangeInput = {
   days: number;
 };
 
-export const resolveDashboardRange = (input: DashboardRangeInput, now = new Date()) => {
+export const resolveDashboardRange = (
+  input: DashboardRangeInput,
+  now = new Date(),
+) => {
   const to = input.to ?? now;
   const from = input.from ?? new Date(to.getTime() - input.days * DAY_MS);
   return { from, to };
 };
 
 export const startOfUtcDay = (date: Date) =>
-  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
 
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
 
 export type TrendSeries = Record<string, Date[]>;
 type TrendBucket = { date: string; [metric: string]: string | number };
 
-export const buildDailyTrendBuckets = (days: number, now: Date, series: TrendSeries) => {
+export const buildDailyTrendBuckets = (
+  days: number,
+  now: Date,
+  series: TrendSeries,
+) => {
   const end = startOfUtcDay(now);
   const start = new Date(end.getTime() - (days - 1) * DAY_MS);
   const buckets = new Map<string, TrendBucket>();
@@ -75,15 +69,9 @@ type CurrencyAggregate = {
   count: number;
 };
 
-const formatMinorUnits = (amount: number, currency: string) => {
-  const normalized = currency.toUpperCase();
-  if (ZERO_DECIMAL_CURRENCIES.has(normalized)) return String(amount);
-  return (amount / 100).toFixed(2);
-};
-
 const toMinor = (row?: CurrencyAggregate) => {
   if (!row?.amount) return 0;
-  return toStripeMinorUnits(row.amount.toString(), row.currency);
+  return toCurrencyMinorUnits(row.amount.toString(), row.currency);
 };
 
 export const buildFinancialCurrencySummary = (
@@ -99,28 +87,26 @@ export const buildFinancialCurrencySummary = (
   const byCurrency = (rows: CurrencyAggregate[], currency: string) =>
     rows.find((row) => row.currency.toUpperCase() === currency);
 
-  return [...currencies]
-    .sort()
-    .map((currency) => {
-      const gross = byCurrency(grossRows, currency);
-      const refunds = byCurrency(refundRows, currency);
-      const outstanding = byCurrency(outstandingRows, currency);
-      const grossMinor = toMinor(gross);
-      const refundMinor = toMinor(refunds);
-      const outstandingMinor = toMinor(outstanding);
-      const netMinor = grossMinor - refundMinor;
+  return [...currencies].sort().map((currency) => {
+    const gross = byCurrency(grossRows, currency);
+    const refunds = byCurrency(refundRows, currency);
+    const outstanding = byCurrency(outstandingRows, currency);
+    const grossMinor = toMinor(gross);
+    const refundMinor = toMinor(refunds);
+    const outstandingMinor = toMinor(outstanding);
+    const netMinor = grossMinor - refundMinor;
 
-      return {
-        currency,
-        grossCollected: formatMinorUnits(grossMinor, currency),
-        successfulPaymentCount: gross?.count ?? 0,
-        refunded: formatMinorUnits(refundMinor, currency),
-        successfulRefundCount: refunds?.count ?? 0,
-        netCashFlow: formatMinorUnits(netMinor, currency),
-        outstandingApproved: formatMinorUnits(outstandingMinor, currency),
-        outstandingInvoiceCount: outstanding?.count ?? 0,
-      };
-    });
+    return {
+      currency,
+      grossCollected: formatCurrencyMinorUnits(grossMinor, currency),
+      successfulPaymentCount: gross?.count ?? 0,
+      refunded: formatCurrencyMinorUnits(refundMinor, currency),
+      successfulRefundCount: refunds?.count ?? 0,
+      netCashFlow: formatCurrencyMinorUnits(netMinor, currency),
+      outstandingApproved: formatCurrencyMinorUnits(outstandingMinor, currency),
+      outstandingInvoiceCount: outstanding?.count ?? 0,
+    };
+  });
 };
 
 export const countByKey = <T extends Record<string, unknown>>(
