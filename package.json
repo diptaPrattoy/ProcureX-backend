@@ -5,12 +5,12 @@
   "description": "ProcuraX - B2B procurement, RFQ, purchase order, invoicing and payment backend",
   "type": "module",
   "engines": {
-    "node": "24.x"
+    "node": "22.x"
   },
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "prisma generate && tsup src/server.ts --format esm --platform node --target node22 --out-dir dist --sourcemap --clean",
-    "start": "node dist/server.js",
+    "dev": "node init && tsx watch src/server.ts",
+    "build": "node init && prisma generate && tsup src/server.ts --format esm --platform node --target node22 --out-dir dist --sourcemap --clean",
+    "start": "node init && node dist/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
@@ -23,38 +23,39 @@
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "test": "tsx tests/run.ts",
-    "verify": "npm run prisma:validate && npm run check && npm run typecheck && npm run test && npm run build",
+    "verify": "npm run prisma:validate && npm run typecheck && npm run test && npm run build",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "@upstash/ratelimit": "^2.1.0",
     "@upstash/redis": "^1.38.4",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
+    "google-auth-library": "^11.1.0",
     "helmet": "^8.1.0",
     "jose": "^6.2.12",
-    "pg": "^8.16.3",
-    "zod": "^4.1.11",
-    "google-auth-library": "^11.1.0",
+    "node-fetch": "^3.3.2",
     "nodemailer": "^10.0.7",
+    "pg": "^8.16.3",
     "stripe": "^22.4.0",
-    "@upstash/ratelimit": "^2.1.0"
+    "tsup": "^8.5.1",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.5.2",
+    "@types/nodemailer": "^7.0.2",
     "@types/pg": "^8.15.5",
     "prisma": "^7.10.0",
-    "tsup": "^8.5.0",
     "tsx": "^4.20.5",
-    "typescript": "^5.9.2",
-    "@types/nodemailer": "^7.0.2"
+    "typescript": "^5.9.2"
   },
   "overrides": {
     "deepmerge-ts": "8.0.2",

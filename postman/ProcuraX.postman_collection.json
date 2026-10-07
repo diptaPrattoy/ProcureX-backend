@@ -2007,10 +2007,27 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/invoices/{{invoiceId}}/payments/checkout",
-              "host": ["{{baseUrl}}"],
-              "path": ["invoices", "{{invoiceId}}", "payments", "checkout"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "payments",
+                "checkout"
+              ]
             },
-            "description": "Creates the Stripe Checkout session for the approved canonical invoice. Repeated calls reuse the same active payment/session instead of creating duplicate attempts."
+            "description": "Creates the Stripe Checkout session for the approved canonical invoice. Repeated calls reuse the same active payment/session instead of creating duplicate attempts.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           },
           "event": [
             {
@@ -2041,8 +2058,12 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/payments?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["payments"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ],
               "query": [
                 {
                   "key": "page",
@@ -2051,6 +2072,16 @@
                 {
                   "key": "limit",
                   "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
                 }
               ]
             }
@@ -2069,8 +2100,23 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/payments/{{paymentId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["payments", "{{paymentId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
             }
           }
         },
@@ -2134,10 +2180,26 @@
             },
             "url": {
               "raw": "{{baseUrl}}/payments/{{paymentId}}/refunds",
-              "host": ["{{baseUrl}}"],
-              "path": ["payments", "{{paymentId}}", "refunds"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}",
+                "refunds"
+              ]
             },
-            "description": "Requests the remaining refundable balance. Omitting amount means full remaining refund."
+            "description": "Requests the remaining refundable balance. Omitting amount means full remaining refund.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           },
           "event": [
             {
@@ -2166,8 +2228,12 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/refunds?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["refunds"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "refunds"
+              ],
               "query": [
                 {
                   "key": "page",
@@ -2176,6 +2242,16 @@
                 {
                   "key": "limit",
                   "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
                 }
               ]
             }
@@ -2194,8 +2270,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/refunds?status=REQUESTED&page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "refunds"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "refunds"
+              ],
               "query": [
                 {
                   "key": "status",
@@ -2208,6 +2289,16 @@
                 {
                   "key": "limit",
                   "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
                 }
               ]
             }
@@ -2240,10 +2331,27 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/refunds/{{refundId}}/approve",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "refunds", "{{refundId}}", "approve"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "refunds",
+                "{{refundId}}",
+                "approve"
+              ]
             },
-            "description": "Creates a Stripe refund using the original PaymentIntent and the persisted idempotency key."
+            "description": "Creates a Stripe refund using the original PaymentIntent and the persisted idempotency key.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -2259,8 +2367,24 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/refunds/{{refundId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "refunds", "{{refundId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "refunds",
+                "{{refundId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
             }
           }
         },
@@ -2376,8 +2500,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/invoices/{{invoiceId}}/disputes",
-              "host": ["{{baseUrl}}"],
-              "path": ["invoices", "{{invoiceId}}", "disputes"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "disputes"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -2388,7 +2518,17 @@
                 }
               }
             },
-            "description": "Opens a dispute against the supplier for the canonical invoice."
+            "description": "Opens a dispute against the supplier for the canonical invoice.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           },
           "event": [
             {
@@ -2417,8 +2557,12 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/disputes?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["disputes"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "disputes"
+              ],
               "query": [
                 {
                   "key": "page",
@@ -2427,6 +2571,16 @@
                 {
                   "key": "limit",
                   "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
                 }
               ]
             }
@@ -2445,8 +2599,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/disputes?status=OPEN&page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "disputes"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "disputes"
+              ],
               "query": [
                 {
                   "key": "status",
@@ -2459,6 +2618,16 @@
                 {
                   "key": "limit",
                   "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
                 }
               ]
             }
@@ -2477,8 +2646,25 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/disputes/{{disputeId}}/review",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "disputes", "{{disputeId}}", "review"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "disputes",
+                "{{disputeId}}",
+                "review"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
             }
           }
         },
@@ -2500,8 +2686,15 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/disputes/{{disputeId}}/resolve",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "disputes", "{{disputeId}}", "resolve"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "disputes",
+                "{{disputeId}}",
+                "resolve"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -2511,6 +2704,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
             }
           }
         },
@@ -2634,10 +2837,24 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/notifications?read=ALL&page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["notifications?read=ALL&page=1&limit=20"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications?read=ALL&page=1&limit=20"
+              ]
             },
-            "description": "Lists the canonical buyer notifications."
+            "description": "Lists the canonical buyer notifications.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           },
           "event": [
             {
@@ -2667,10 +2884,25 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/notifications/unread-count",
-              "host": ["{{baseUrl}}"],
-              "path": ["notifications", "unread-count"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "unread-count"
+              ]
             },
-            "description": "Returns the buyer unread notification count."
+            "description": "Returns the buyer unread notification count.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -2686,10 +2918,26 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/notifications/{{notificationId}}/read",
-              "host": ["{{baseUrl}}"],
-              "path": ["notifications", "{{notificationId}}", "read"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
             },
-            "description": "Marks one owned notification as read."
+            "description": "Marks one owned notification as read.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -2705,10 +2953,25 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/notifications/read-all",
-              "host": ["{{baseUrl}}"],
-              "path": ["notifications", "read-all"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "read-all"
+              ]
             },
-            "description": "Marks all buyer notifications as read."
+            "description": "Marks all buyer notifications as read.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -2724,10 +2987,25 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/activity/me?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["activity", "me?page=1&limit=20"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "activity",
+                "me?page=1&limit=20"
+              ]
             },
-            "description": "Lists audit activity where the canonical buyer is the actor."
+            "description": "Lists audit activity where the canonical buyer is the actor.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         }
       ]
@@ -2748,10 +3026,25 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/audit-logs?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "audit-logs?page=1&limit=20"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "audit-logs?page=1&limit=20"
+              ]
             },
-            "description": "Lists system audit logs for administrators."
+            "description": "Lists system audit logs for administrators.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           },
           "event": [
             {
@@ -2781,10 +3074,26 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/audit-logs/{{auditLogId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "audit-logs", "{{auditLogId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "audit-logs",
+                "{{auditLogId}}"
+              ]
             },
-            "description": "Retrieves one audit log with actor details."
+            "description": "Retrieves one audit log with actor details.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         }
       ]
@@ -2805,8 +3114,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/dashboard/overview?days=30",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "dashboard", "overview"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard",
+                "overview"
+              ],
               "query": [
                 {
                   "key": "days",
@@ -2814,7 +3129,17 @@
                 }
               ]
             },
-            "description": "Returns operational KPIs, verification/review backlogs, user/supplier counts, and recent audit activity."
+            "description": "Returns operational KPIs, verification/review backlogs, user/supplier counts, and recent audit activity.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -2830,8 +3155,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/dashboard/financials?days=30",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "dashboard", "financials"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard",
+                "financials"
+              ],
               "query": [
                 {
                   "key": "days",
@@ -2839,7 +3170,17 @@
                 }
               ]
             },
-            "description": "Returns gross collections, refunds, net collections, and outstanding approved invoices grouped by currency."
+            "description": "Returns gross collections, refunds, net collections, and outstanding approved invoices grouped by currency.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -2855,8 +3196,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/dashboard/trends?days=30",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "dashboard", "trends"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard",
+                "trends"
+              ],
               "query": [
                 {
                   "key": "days",
@@ -2864,7 +3211,17 @@
                 }
               ]
             },
-            "description": "Returns UTC daily trend buckets for RFQs, quotations, POs, invoices, successful payments, refund requests, and disputes."
+            "description": "Returns UTC daily trend buckets for RFQs, quotations, POs, invoices, successful payments, refund requests, and disputes.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         }
       ]
